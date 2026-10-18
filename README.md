@@ -50,6 +50,7 @@ The dashboard reads a few files under a **data root** (bundled sample data by de
 leads/watch_log.jsonl      one JSON object per line, one per observation run
 leads/threads.json         event storylines
 leads/interpretation.json  analyst notes for the Interpretation tab
+leads/leads.json           what you track: one entry per lead (edit it in the app with + add)
 leads/watchlist.json       what to watch
 reference/detection_vectors.json   the methods catalogue
 ```
@@ -62,7 +63,9 @@ open --env SWARMCHASER_ROOT=/path/to/your/data SwarmChaser.app
 
 (`open` doesn't pass your shell's variables to an app, hence `--env`. In the browser it's `SWARMCHASER_ROOT=/path/to/your/data python3 scripts/serve.py`.)
 
-How you *produce* `watch_log.jsonl` is up to you — SwarmChaser is just the viewer. The methodology this project was built around is written up in [docs/methodology.md](docs/methodology.md).
+**Adding leads.** Press **+ add** on the Overview leads panel, or **track** on anything under *possible new leads*: activity your log already recorded that no tracked lead covers (rows in a `catch_all` lead, or lead ids your log uses that aren't in `leads.json`). With your own data folder the Mac app saves `leads/leads.json` for you; with the bundled sample or in a browser it gives you the text to paste. Items with nothing new (quiet leads, routine runs, clear alerts) are drawn in a lighter tone so the ones that changed stand out.
+
+How you *produce* `watch_log.jsonl` is up to you — SwarmChaser is just the viewer; it never searches anything itself. The methodology this project was built around is written up in [docs/methodology.md](docs/methodology.md).
 
 ## Archives (optional)
 
@@ -76,7 +79,7 @@ Each dataset has its own terms — see the source pages linked in `scripts/fetch
 
 ## Scope
 
-**It does:** read a local JSONL log and public, already-published records; visualize them; render everything offline.
+**It does:** read a local JSONL log and public, already-published records; visualize them; render everything offline; save your lead list (`leads/leads.json`) when you edit it.
 
 **It does not:** make network requests of its own (strict Content-Security-Policy, no outbound `connect-src`), open or follow agent carrier pages, scan or probe any target, contact anyone, or store credentials. External links are filtered by a host policy; known agent carrier/relay hosts are blocked outright.
 

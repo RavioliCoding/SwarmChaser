@@ -475,6 +475,25 @@ html:not(.dense) .arc:not(.on) small{display:none}
 .seg button{padding:0 9px;height:24px;background:rgba(var(--ink),.05);color:var(--tx2);font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
 .seg button:hover{color:var(--wh)}.seg button.on{background:var(--inv);color:var(--invtx)}
 .vnote{margin-top:6px;font-size:10px;color:var(--tx3);line-height:1.5}
+/* ── quiet tier: routine, nothing-new rows step back so the ones that matter stand out ── */
+.lowsig,.lowsig *{color:var(--tx3)!important;font-weight:500!important;text-shadow:none!important;box-shadow:none!important}
+.lowsig .bar i,.lowsig .fdot,.lowsig .sd,.lowsig .h6 i{opacity:.4}
+.lowsig:hover,.lowsig:hover *{color:var(--tx2)!important}
+/* ── possible new leads + the lead editor ── */
+.ph-act,.cand button,.ledit button{border:1px solid var(--ln2);padding:2px 8px;font-size:10px;color:var(--tx2);text-transform:uppercase;letter-spacing:.08em;font-weight:600}
+.ph-act:hover,.cand button:hover,.ledit button:hover{color:var(--wh);border-color:var(--ln3)}
+.cand{padding:7px 0;border-top:1px solid var(--ln);font-size:11px}.cand:first-child{border-top:0;padding-top:2px}
+.cand .ch{display:flex;justify-content:space-between;align-items:baseline;gap:8px}.cand .ch b{color:var(--wh);font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cand .ch span{color:var(--tx3);font-size:10px;white-space:nowrap}
+.cand p{color:var(--tx2);margin:3px 0 6px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cand .acts{display:flex;gap:6px}.cand button.go,.ledit button.go{color:var(--cy);border-color:var(--cy)}
+.ledit{position:fixed;inset:0;z-index:60;display:none;place-items:center;background:var(--dim)}.ledit.on{display:grid}
+.ledit form{width:min(460px,calc(100vw - 32px));max-height:calc(100vh - 40px);overflow-y:auto;background:var(--pnS);border:1px solid var(--ln2);border-top:2px solid var(--cy);padding:14px 16px;display:flex;flex-direction:column;gap:10px;font-size:12px}
+.ledit form>b{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--cy)}
+.ledit label{display:flex;flex-direction:column;gap:4px;color:var(--tx);font-size:11px}.ledit label small{color:var(--tx3);font-size:10px}
+.ledit input,.ledit select,.ledit textarea{background:rgba(var(--ink),.04);border:1px solid var(--ln2);color:var(--wh);font:inherit;font-size:12px;padding:5px 8px;border-radius:0}
+.ledit textarea{resize:vertical}.ledit .acts{display:flex;gap:6px;flex-wrap:wrap}.ledit .acts button{padding:5px 10px}
+.le-msg{font-size:11px;color:var(--tx2);line-height:1.5}.le-msg.err{color:var(--re)}.le-msg textarea{width:100%;margin-top:6px;font-size:10.5px}
 /* ── plain-words explanations (View → explanations, or E) ── */
 .eli{font-size:11px;line-height:1.45;color:var(--tx2);padding:0 10px 7px;margin-top:-1px;flex-shrink:0;white-space:normal}
 .eli::before{content:'↳ ';color:var(--tx3)}
@@ -539,12 +558,13 @@ html.no-eli .eli,html.no-eli .eli5{display:none}
           <div class="sl"><span>alerts raised</span><b class="c-re" id="slFlagV">—</b></div><canvas class="spark" id="cvSpFlag"></canvas>
         </div></div>
       <div class="pnl"><div class="ph"><span>alerts | latest run</span><b id="flagCount">—</b></div><div class="pb" id="flagList"></div></div>
+      <div class="pnl"><div class="ph"><span>possible new leads</span><b id="candCount">—</b></div><div class="pb" id="candList"></div></div>
       <div class="pnl xd"><div class="ph"><span>leads | status now</span><b id="leadCount">—</b></div><div class="pb" id="leadState"></div></div>
       <div class="pnl xd"><div class="ph"><span>at a glance</span></div><dl class="pb kv" id="telemetry"></dl></div>
     </aside>
     <div class="dock">
       <div class="pnl"><div class="ph"><span>watch log</span><b id="logCount">—</b></div><div class="log" id="watchLog"></div></div>
-      <div class="pnl"><div class="ph"><span>leads</span><b>agent scans</b></div><div class="secs" id="leadBars"></div></div>
+      <div class="pnl"><div class="ph"><span>leads · agent scans</span><button class="ph-act" id="addLeadBtn" title="Track a new site, relay, carrier or fleet">+ add</button></div><div class="secs" id="leadBars"></div></div>
       <div class="pnl xd"><div class="ph"><span>where activity sits</span><b>by lead</b></div><div class="cvbox"><canvas id="cvRadar"></canvas></div><div class="minis" id="radarLeg"></div></div>
       <div class="pnl xd"><div class="ph"><span>activity grid</span><b id="heatMax">—</b></div><div class="cvbox"><canvas id="cvHeat"></canvas></div><div class="pfoot" id="heatFoot"></div></div>
       <div class="pnl"><div class="ph"><span>threat level</span><b>0–100</b></div><div class="cvbox"><canvas id="cvGauge"></canvas></div><div class="pfoot" id="gaugeFoot"></div></div>
@@ -705,6 +725,16 @@ html.no-eli .eli,html.no-eli .eli5{display:none}
 
 <div class="toast" id="toast"></div>
 <div class="since" id="since"></div>
+<div class="ledit" id="leadEd"><form id="leadForm" autocomplete="off" spellcheck="false">
+  <b id="leTitle">track a new lead</b>
+  <label>name<input name="lname" maxlength="60" placeholder="e.g. some-relay.example"></label>
+  <label>what is it<select name="lkind"><option value="target">a site agents are trying to reach</option><option value="relay">a relay or proxy they route through</option><option value="carrier">a carrier: paste, inbox or file host</option><option value="fleet">a fleet: agents sharing tags or infrastructure</option><option value="other">something else</option></select></label>
+  <label>what the watch should search for<small>comma-separated, e.g. a host name or a tag the agents use</small><input name="lterms" maxlength="1700"></label>
+  <label>tags to show on its cloud<small>optional, comma-separated</small><input name="ltags" maxlength="800"></label>
+  <label>note<small>optional: why it matters</small><textarea name="lnote" maxlength="500" rows="3"></textarea></label>
+  <div class="le-msg" id="leMsg"></div>
+  <div class="acts"><button type="submit" class="go">save lead</button><button type="button" data-a="retire" id="leRetire">stop tracking</button><button type="button" data-a="cancel">cancel</button></div>
+</form></div>
 <div class="help" id="help"><div class="help-dim"></div><div id="helpLabels"></div>
   <aside class="gloss min"><div class="gh"><b>how to read this</b><span><button id="glossBtn">words used</button> <button id="helpClose">close · esc</button></span></div>
     <p class="gi">Numbered notes explain each panel on this tab. Switch tabs to see theirs. Words used throughout:</p><dl id="glossList"></dl></aside></div>
@@ -717,6 +747,7 @@ const LEADS=['newspapers_com','pastehtml_carrier','jina_relay','cors_lol_relay',
 const LNAME={newspapers_com:'newspapers.com',pastehtml_carrier:'pastehtml.dev',jina_relay:'r.jina.ai',cors_lol_relay:'api.cors.lol',amap_fleet:'amap fleet',generic_carriers:'generic carriers'};
 const LSHORT={newspapers_com:'NEWS',pastehtml_carrier:'PASTE',jina_relay:'JINA',cors_lol_relay:'CORS',amap_fleet:'AMAP',generic_carriers:'GEN'};
 const LCOL={newspapers_com:'#f4a940',pastehtml_carrier:'#5ab4ff',jina_relay:'#3fd6a6',cors_lol_relay:'#ff8fb1',amap_fleet:'#b69cff',generic_carriers:'#d5dae1'};
+const LKIND={newspapers_com:'target',pastehtml_carrier:'carrier',jina_relay:'relay',cors_lol_relay:'relay',amap_fleet:'fleet',generic_carriers:'carrier'},LUNREG={},LCATCH={};
 const FKEYS=['cross_run_reuse','agent_communication_signs','new_carrier_or_relay','new_population'];
 const FLAB={cross_run_reuse:'cross-run reuse',agent_communication_signs:'agent comms',new_carrier_or_relay:'new carrier / relay',new_population:'new population'};
 const C={wh:'#f1f3f6',tx:'#c6ccd4',tx2:'#959daa',tx3:'#6a737e',tx4:'#2c333b',am:'#f4a940',cy:'#5ab4ff',te:'#3fd6a6',re:'#ff5a52',or:'#ff8a3d'};
@@ -801,7 +832,7 @@ function norm(r){
     return {...l,id,status:l.status||'unknown',new_rows:+l.new_rows||0,new_report_links:Array.isArray(l.new_report_links)?l.new_report_links.filter(safeUrl):[]};});
   return {...r,requests_made:+r.requests_made||0,leads,flags:r.flags||{},wayback:r.wayback||{host:'—',captures_since_last_run:0,burst:false},summary:r.summary||'',trigger:r.trigger||'—'};
 }
-let RUNS=MOCK.map(norm).sort((a,b)=>D(b.run_utc)-D(a.run_utc)), SRC='embedded', LAST_TXT=null;
+let RUNS=[], RAW_RUNS=MOCK, SRC='embedded', LAST_TXT=null;
 let INTERP=INTERP_DEFAULT, INTERP_SRC='embedded', INTERP_TXT=null, S=null;
 
 async function loadData(){
@@ -810,7 +841,7 @@ async function loadData(){
     const txt=await r.text();if(txt===LAST_TXT)return false;
     const parsed=txt.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{try{return JSON.parse(l)}catch{return null}}).filter(x=>x&&x.run_utc);
     if(!parsed.length)throw 0;
-    LAST_TXT=txt;RUNS=parsed.map(norm).sort((a,b)=>D(b.run_utc)-D(a.run_utc));SRC='jsonl';return true;
+    LAST_TXT=txt;RAW_RUNS=parsed;SRC='jsonl';return true;
   }catch{return false}
 }
 async function loadInterp(){
@@ -836,9 +867,9 @@ function derive(){
   const postureAt=i=>{let s=0;for(let j=i;j<Math.min(R.length,i+8);j++){const r=R[j],w=Math.pow(.6,j-i);
     s+=w*(30*flagsOf(r).length+10*r.leads.filter(l=>l.status==='new').length+5*r.leads.filter(l=>l.status==='active').length+.5*rowsOf(r));}
     return Math.min(100,Math.round(s));};
-  // newspapers.com episode cadence (from runs that flagged a NEW episode)
-  const eps=asc.map(r=>r.leads.find(l=>l.id==='newspapers_com'&&l.status==='new')).filter(l=>l&&l.newest_activity_utc).map(l=>D(l.newest_activity_utc).getTime());
-  let cadence=null;if(eps.length>=2){const g=(eps[eps.length-1]-eps[0])/(eps.length-1);cadence={gap:g,n:eps.length,last:eps[eps.length-1],next:eps[eps.length-1]+g};}
+  // episode cadence for the lead with the most new episodes (needs at least two)
+  let cadence=null;for(const id of LEADS){const eps=asc.map(r=>r.leads.find(l=>l.id===id&&l.status==='new')).filter(l=>l&&l.newest_activity_utc).map(l=>D(l.newest_activity_utc).getTime());
+    if(eps.length>=2&&(!cadence||eps.length>cadence.n)){const g=(eps[eps.length-1]-eps[0])/(eps.length-1);cadence={lead:id,gap:g,n:eps.length,last:eps[eps.length-1],next:eps[eps.length-1]+g}}}
   const L=R[0];
   return {R,asc,flagsOf,rowsOf,linksOf,moving,leadTot,cadence,
     posture:R.length?postureAt(0):0,postureSeries:asc.map((_,k)=>postureAt(R.length-1-k)),
@@ -871,11 +902,11 @@ function renderOverview(anim){
   const lf=S.flagsOf(L);
   $('#flagCount').textContent=lf.length+'/'+FKEYS.length;$('#flagCount').className=lf.length?'hot':'';
   $('#flagList').innerHTML=FKEYS.map(k=>{const hot=L.flags[k]===true,fired=S.asc.filter(r=>r.flags[k]===true).length;
-    return `<div class="frow ${hot?'hot':fired?'was':''}" data-flag="${k}" title="${fired?'open the latest run that raised this':'never raised in the loaded runs'}"><span class="fdot"></span><span class="fname">${FLAB[k]}</span><span class="fval">${hot?'TRIGGERED':fired?'FIRED '+fired+'×':'CLEAR'}</span><div class="fhist">${S.asc.map(r=>`<i class="${r.flags[k]===true?'on':''}" title="${stamp(r.run_utc)}"></i>`).join('')}</div></div>`}).join('');
+    return `<div class="frow ${hot?'hot':fired?'was':'lowsig'}" data-flag="${k}" title="${fired?'open the latest run that raised this':'never raised in the loaded runs'}"><span class="fdot"></span><span class="fname">${FLAB[k]}</span><span class="fval">${hot?'TRIGGERED':fired?'FIRED '+fired+'×':'CLEAR'}</span><div class="fhist">${S.asc.map(r=>`<i class="${r.flags[k]===true?'on':''}" title="${stamp(r.run_utc)}"></i>`).join('')}</div></div>`}).join('');
   const mx=Math.max(1,...LEADS.map(id=>S.leadTot[id].rows));
   $('#leadCount').textContent=S.moving(L).length+' moving';
   $('#leadState').innerHTML=L.leads.map((l,i)=>{const t=S.leadTot[l.id];
-    return `<div class="lrow" data-id="${l.id}" title="focus this lead"><span class="n">0${i+1}</span><span class="nm">${LNAME[l.id]}</span><span class="bar"><i style="width:${(t.rows/mx*100).toFixed(1)}%;background:${LCOL[l.id]}"></i></span><span class="st ${esc(l.status)}">${esc(l.status)}</span></div>`}).join('');
+    return `<div class="lrow${l.status==='quiet'||l.status==='unknown'?' lowsig':''}" data-id="${l.id}" title="focus this lead"><span class="n">0${i+1}</span><span class="nm">${LNAME[l.id]}</span><span class="bar"><i style="width:${(t.rows/mx*100).toFixed(1)}%;background:${LCOL[l.id]}"></i></span><span class="st ${esc(l.status)}">${esc(l.status)}</span></div>`}).join('');
   const lm=S.lastMove;
   $('#telemetry').innerHTML=[['runs loaded',R.length],['window',`${stamp(S.asc[0].run_utc)} → ${hm(L.run_utc)}${zs()}`],['searches made',S.totReq],['agent scans',S.totRows],['report links',S.totLinks],['alert runs',`${S.flagRuns}/${R.length}`],['access ok',`${S.accessOk}/${R.length}`],['wayback caps',S.wayback],['last move',lm?`${hm(lm.run_utc)}${zs()} · ${LNAME[S.moving(lm)[0].id]}`:'—']]
     .map(([k,v])=>`<dt>${k}</dt><dd>${esc(v)}</dd>`).join('');
@@ -884,19 +915,19 @@ function renderOverview(anim){
   const ev=[];
   R.forEach(r=>{const t=hm(r.run_utc);
     const u=r.run_utc;
-    ev.push([t,'watch','',`${r.requests_made} searches · ${r.access_ok===false?'some access failed':'access ok'}`,u]);
+    ev.push([t,'watch','',`${r.requests_made} searches · ${r.access_ok===false?'some access failed':'access ok'}`,u,r.access_ok!==false]);
     S.moving(r).forEach(l=>ev.push([t,l.status==='new'?'new':'agent',l.status==='new'?'re':'am',`${LNAME[l.id]} +${l.new_rows} scans`,u]));
     r.leads.filter(l=>l.technique_change).forEach(l=>ev.push([t,'tactic','cy',l.technique_change,u]));
     S.flagsOf(r).forEach(k=>ev.push([t,'alert','re',FLAB[k],u]));
-    if(!S.moving(r).length&&!S.flagsOf(r).length)ev.push([t,'quiet','d','all leads quiet',u]);
+    if(!S.moving(r).length&&!S.flagsOf(r).length)ev.push([t,'quiet','d','all leads quiet',u,true]);
   });
   const lg=$('#watchLog');lg.className='log'+(anim?' anim':'');
-  lg.innerHTML=ev.map(([t,v,c,x,u],i)=>`<div data-run="${u}" title="open this run" style="animation-delay:${Math.min(i,24)*35}ms"><span class="t">${t}</span><span class="v ${c}">${v}</span><span class="x" title="${esc(x)}">${esc(x)}</span></div>`).join('');
+  lg.innerHTML=ev.map(([t,v,c,x,u,lo],i)=>`<div${lo?' class="lowsig"':''} data-run="${u}" title="open this run" style="animation-delay:${Math.min(i,24)*35}ms"><span class="t">${t}</span><span class="v ${c}">${v}</span><span class="x" title="${esc(x)}">${esc(x)}</span></div>`).join('');
   $('#logCount').textContent=ev.length+' ev';
 
   // leads bars
   $('#leadBars').innerHTML=LEADS.map(id=>{const t=S.leadTot[id];
-    return `<div data-id="${id}" title="focus this lead"><div class="r"><span>${LNAME[id]}</span><b>${t.rows} scans</b></div><div class="bar"><i style="width:${(t.rows/mx*100).toFixed(1)}%;background:${t.runsMoving?LCOL[id]:'rgba(var(--ink),.5)'}"></i></div></div>`}).join('');
+    return `<div data-id="${id}"${t.rows?'':' class="lowsig"'} title="focus this lead"><div class="r"><span>${LNAME[id]}</span><b>${t.rows} scans</b></div><div class="bar"><i style="width:${(t.rows/mx*100).toFixed(1)}%;background:${t.runsMoving?LCOL[id]:'rgba(var(--ink),.5)'}"></i></div></div>`}).join('');
 
   // radar legend
   const ch=LEADS.reduce((a,id)=>a+S.leadTot[id].changes.length,0), m3=Math.max(1,S.totRows,S.totLinks*3,ch*3);
@@ -976,9 +1007,32 @@ function drawGauge(){
 
 /* ── constellation (overview hero) ── */
 const K={c:null,w:0,h:0,lobes:[],dust:null,dend:[],rot:{yaw:.6,pitch:-.32},rt:{yaw:.6,pitch:-.32},drag:null,_dragged:false,focus:null,hover:null,mx:-1e4,my:-1e4,inside:false,reuse:0,newRelay:{},scanT0:-1e9};
-const LPOS={newspapers_com:[-.6,-.12],pastehtml_carrier:[-.16,-.62],jina_relay:[.36,-.58],cors_lol_relay:[.68,.04],amap_fleet:[.4,.62],generic_carriers:[-.2,.66]};
 const LTAGS={newspapers_com:['/api/search/hits','page 151032709','page 648915976','callback=alert'],pastehtml_carrier:['32-char subdomains','×20 throwaway pages'],jina_relay:['x=2000…2014','21 parallel scans'],
   cors_lol_relay:['hetzner 195.201.220.186','_cb= retries'],amap_fleet:['uqframe=claude20261004b','AS132203 tencent'],generic_carriers:['httpbin','allorigins','workers.dev']};
+/* ── lead registry: leads/leads.json says what we track; ids the watch log names that aren't in it still show ── */
+const PAL={dark:['#f4a940','#5ab4ff','#3fd6a6','#ff8fb1','#b69cff','#d5dae1','#e8d36a','#7fd1e8','#ff9f7a','#a3e07f','#c9a0ff','#f2c1d1'],
+  light:['#c27400','#1d6bcc','#0b8a66','#d0457c','#7656d6','#6b7480','#9a7d12','#1b8aa6','#c2560f','#4f8a1f','#7a3fc0','#b0456e']};
+const KINDS={target:'a site agents are trying to reach',relay:'a relay or proxy they route through',carrier:'a carrier: paste, inbox or file host',fleet:'a fleet: agents sharing tags or infrastructure',other:'something else'};
+const DEF_REG=LEADS.map(id=>({id,name:LNAME[id],short:LSHORT[id],kind:LKIND[id],color:THEMES.dark.L[id],color_light:THEMES.light.L[id],tags:LTAGS[id]||[],...(id==='generic_carriers'?{catch_all:true}:{})}));
+let REG=null,REG_TXT=null;
+async function loadLeads(){try{const r=await dataFetch('leads/leads.json');if(!r.ok)throw 0;const txt=await r.text();if(txt===REG_TXT)return false;const j=JSON.parse(txt);if(!Array.isArray(j.leads))throw 0;REG=j;REG_TXT=txt;return true}catch{if(REG){REG=null;REG_TXT=null;return true}return false}}
+const regList=()=>REG?REG.leads:DEF_REG;
+const regOf=id=>regList().find(l=>l&&l.id===id)||{};
+const slug=s=>String(s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||'lead';
+const shortOf=n=>String(n).replace(/^(www|api)\./i,'').replace(/[^a-z0-9]/gi,'').slice(0,5).toUpperCase()||'LEAD';
+// rebuild the lead tables in place (the rest of the page holds references to them), then normalise the runs
+function applyRegistry(){
+  const reg=regList().filter(l=>l&&typeof l.id==='string'),list=reg.filter(l=>!l.archived),retired=new Set(reg.filter(l=>l.archived).map(l=>l.id)),seen=new Set(list.map(l=>l.id)),extra=[];
+  for(const r of RAW_RUNS)for(const l of (r.leads||[]))if(l&&typeof l.id==='string'&&!seen.has(l.id)&&!retired.has(l.id)){seen.add(l.id);extra.push({id:l.id,name:l.id.replace(/_/g,' '),unregistered:true})}
+  const all=[...list,...extra],hex=c=>/^#[0-9a-f]{6}$/i.test(c||'')?c:null;
+  LEADS.splice(0,LEADS.length,...all.map(l=>l.id));
+  for(const o of [LNAME,LSHORT,LKIND,LTAGS,LUNREG,LCATCH,THEMES.dark.L,THEMES.light.L,LCOL])for(const k in o)delete o[k];
+  all.forEach((l,i)=>{LNAME[l.id]=String(l.name||l.id).slice(0,60);LSHORT[l.id]=String(l.short||shortOf(LNAME[l.id])).slice(0,6);LKIND[l.id]=KINDS[l.kind]?l.kind:'other';
+    LTAGS[l.id]=Array.isArray(l.tags)?l.tags.map(String).slice(0,12):[];if(l.unregistered)LUNREG[l.id]=true;if(l.catch_all)LCATCH[l.id]=true;
+    THEMES.dark.L[l.id]=hex(l.color)||PAL.dark[i%PAL.dark.length];THEMES.light.L[l.id]=hex(l.color_light)||PAL.light[i%PAL.light.length]});
+  Object.assign(LCOL,THM.L);
+  RUNS=RAW_RUNS.map(norm).sort((a,b)=>D(b.run_utc)-D(a.run_utc));
+}
 function buildConst(){
   seed=7;const L0=S.R[0],N=LEADS.length;
   K.lobes=LEADS.map((id,i)=>{
@@ -1008,7 +1062,8 @@ function buildConst(){
   K.ring=K.lobes.map((L,i)=>i).sort((a,b)=>Math.atan2(K.lobes[a].p3[2],K.lobes[a].p3[0])-Math.atan2(K.lobes[b].p3[2],K.lobes[b].p3[0]));
   if(SP.tgt>=K.lobes.length){SP.tgt=-1;SP.mode='idle'}
   K.reuse=S.reuseCount;K.newRelay={};
-  S.R.forEach(r=>{if(r.flags.new_carrier_or_relay===true)r.leads.forEach(l=>{if(l.status==='new'&&l.id!=='newspapers_com'&&!K.newRelay[l.id])K.newRelay[l.id]=r.run_utc})});
+  {const n={};S.R.forEach(r=>{if(r.flags.cross_run_reuse===true)r.leads.forEach(l=>{if(l.status==='new'||l.status==='active')n[l.id]=(n[l.id]||0)+1})});K.reuseLead=Object.keys(n).sort((a,b)=>n[b]-n[a])[0]||(S.cadence&&S.cadence.lead)||null}
+  S.R.forEach(r=>{if(r.flags.new_carrier_or_relay===true)r.leads.forEach(l=>{if(l.status==='new'&&LKIND[l.id]!=='target'&&!K.newRelay[l.id])K.newRelay[l.id]=r.run_utc})});
   const ND=820;K.dust=new Float32Array(ND*3);
   for(let p=0;p<ND;p++){const u=rnd()*2-1,a=rnd()*6.283,rr=Math.sqrt(Math.max(0,1-u*u));K.dust[p*3]=Math.cos(a)*rr;K.dust[p*3+1]=u;K.dust[p*3+2]=Math.sin(a)*rr}
   K.dend=[];for(let k=0;k<20;k++){const a=k/20*6.283+(rnd()-.5)*.1,cr=Math.cos(-.35),sr=Math.sin(-.35),x0=Math.cos(a)*19*.98,y0=Math.sin(a)*13*.98,rx=x0*cr-y0*sr,ry=x0*sr+y0*cr,ang=Math.atan2(ry,rx);
@@ -1086,7 +1141,7 @@ function drawCrawler(c,x,y,s,t,reading,scanning){
 }
 function drawLobeLabels(c,t,scanning){
   c.textBaseline='alphabetic';
-  if(K.reuse){const L=K.lobes.find(l=>l.id==='newspapers_com');if(L&&L.depth>-.5){c.save();c.globalAlpha=dimOfG(L)*.75;c.strokeStyle=rgba(C.re,.7);c.lineWidth=1;c.setLineDash([4,6]);c.lineDashOffset=-t*.03;c.beginPath();c.ellipse(L.sx,L.sy,L.sr*.62,L.sr*.46,0,0,6.283);c.stroke();c.setLineDash([]);c.restore()}}
+  if(K.reuse){const L=K.lobes.find(l=>l.id===K.reuseLead);if(L&&L.depth>-.5){c.save();c.globalAlpha=dimOfG(L)*.75;c.strokeStyle=rgba(C.re,.7);c.lineWidth=1;c.setLineDash([4,6]);c.lineDashOffset=-t*.03;c.beginPath();c.ellipse(L.sx,L.sy,L.sr*.62,L.sr*.46,0,0,6.283);c.stroke();c.setLineDash([]);c.restore()}}
   // place labels without overlapping each other or the crawler's own label: reading lobe first, then front to back
   const placed=K.crLab?[K.crLab]:[],hit=r=>placed.some(q=>r.x<q.x+q.w&&r.x+r.w>q.x&&r.y<q.y+q.h&&r.y+r.h>q.y);
   const ord=K.lobes.filter(L=>L.depth>=-.5).sort((a,b)=>((crawlState(b)==='reading')-(crawlState(a)==='reading'))||(b.depth-a.depth));
@@ -1096,7 +1151,7 @@ function drawLobeLabels(c,t,scanning){
     for(const dy of [0,30,-30,60,-60]){const rr={x:x-lw/2,y:y0+dy-13,w:lw,h:hh};if(!hit(rr)){y=y0+dy;crowded=false;placed.push(rr);break}}
     if(crowded&&st!=='reading'&&!isH)continue;  // no room: skip a background label rather than pile it on
     c.globalAlpha=dm*(st==='reading'?1:.92);c.textAlign='center';
-    c.font=font(800,st==='reading'?13.5:12.5);c.fillStyle=L.mov?LCOL[L.id]:C.wh;c.fillText(LNAME[L.id],x,y);
+    c.font=font(800,st==='reading'?13.5:12.5);c.fillStyle=L.mov?LCOL[L.id]:L.recent?C.wh:C.tx2;c.fillText(LNAME[L.id],x,y);
     c.font=font(500,10);c.fillStyle=st==='reading'?C.am:st==='done'?C.tx2:C.tx3;c.fillText(line,x,y+14);
     if(K.newRelay[L.id]){const tx='new relay · '+mdd(K.newRelay[L.id]);c.font=font(700,9);const tw=c.measureText(tx).width+10;c.strokeStyle=C.re;c.lineWidth=1;c.strokeRect(x-tw/2+.5,y+20.5,tw,14);c.fillStyle=C.re;c.fillText(tx,x,y+31)}
     if((isH||isDense())&&st!=='reading'&&L.tags.length){c.font=font(500,9.5);c.textAlign='left';let ty=y-18;for(const tag of L.tags.slice(0,3)){const tw=c.measureText(tag).width+10;c.fillStyle=paper(.82*dm);c.fillRect(x-tw/2,ty-11,tw,14);c.strokeStyle=ink(.5*dm);c.strokeRect(x-tw/2+.5,ty-10.5,tw-1,13);c.fillStyle=ink(dm);c.fillText(tag,x-tw/2+5,ty);ty-=17}}
@@ -1185,11 +1240,78 @@ function showFocus(id){
     <dl class="kv"><dt>newest activity</dt><dd>${t.newest?stamp(t.newest)+zs()+' · '+ago(t.newest):'—'}</dd><dt>rows in window</dt><dd>${t.rows}</dd><dt>report links</dt><dd>${t.links}</dd><dt>moving runs</dt><dd>${t.runsMoving}/${S.R.length}</dd></dl>
     ${t.changes.length?`<p><span class="c-cy">technique Δ</span> ${t.changes.map(ch=>`${hm(ch.run)}${zs()} ${esc(ch.txt)}`).join(' · ')}</p>`:''}
     ${t.notes?`<p><span class="c-2">note ${hm(t.notes.run)}${zs()}</span> ${esc(t.notes.txt)}</p>`:''}
-    <div class="acts"><button data-go="runlog">run log →</button>${t.links?'<button data-go="intel">links →</button>':''}<button data-x="1">close</button></div>`;
+    <div class="acts"><button data-go="runlog">run log →</button>${t.links?'<button data-go="intel">links →</button>':''}<button data-edit="1">${LUNREG[id]?'add to leads':'edit'}</button><button data-x="1">close</button></div>`;
   fc.classList.add('on');
 }
 function focusLobe(id){K.focus=id;showFocus(id)}
 function unfocus(){K.focus=null;$('#focusCard').classList.remove('on')}
+
+/* ── possible new leads: activity the watch already logged that no tracked lead covers (nothing here searches) ── */
+const HOST_RE=/\b(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}\b/gi;
+const NOT_LEAD=h=>/(^|\.)(urlquery\.net|urlscan\.io|archive\.org|huggingface\.co|abuse\.ch|github\.com)$/.test(h)||/\.(json|jsonl|md|js|html?|csv|txt|png|jpe?g|zip|gz|py|php)$/.test(h);
+function candidates(){
+  const dis=new Set((store.get('sc.dismissed')||'').split('\n').filter(Boolean)),out=new Map();
+  const known=LEADS.filter(id=>!LUNREG[id]&&!LCATCH[id]).flatMap(id=>[LNAME[id],...((regOf(id).watch_terms)||[])]).map(s=>String(s).toLowerCase());
+  const isKnown=h=>known.some(k=>k&&(h.includes(k)||k.includes(h)));
+  const add=(key,c)=>{if(dis.has(key))return;const o=out.get(key);if(o){o.n++;if(c.t>o.t)Object.assign(o,{t:c.t,why:c.why})}else out.set(key,{key,n:1,...c})};
+  for(const r of S.asc)for(const l of r.leads){const moved=l.new_rows>0||l.status==='new'||l.status==='active';if(!moved)continue;
+    if(LUNREG[l.id])add('id:'+l.id,{name:LNAME[l.id],id:l.id,kind:'other',t:r.run_utc,why:`The watch logged "${l.id}", which isn't in your lead list yet.`});
+    else if(LCATCH[l.id]){const hosts=[...new Set(((l.notes||'')+' '+(l.technique_change||'')).match(HOST_RE)||[])].map(h=>h.toLowerCase()).filter(h=>!NOT_LEAD(h)&&!isKnown(h));
+      if(hosts.length)hosts.forEach(h=>add('host:'+h,{name:h,kind:'carrier',term:h,t:r.run_utc,why:(l.notes||'').replace(/^misalignment M\d[^;]*;\s*/,'')}));
+      else add('row:'+r.run_utc,{name:'unlabelled activity',kind:'other',t:r.run_utc,why:(l.notes||'no notes').replace(/^misalignment M\d[^;]*;\s*/,'')})}}
+  return [...out.values()].sort((a,b)=>D(b.t)-D(a.t));
+}
+function renderCandidates(){
+  const cs=candidates();$('#candCount').textContent=cs.length?cs.length+' to review':'none';$('#candCount').className=cs.length?'am':'';
+  $('#candList').innerHTML=cs.map((c,i)=>`<div class="cand"><div class="ch"><b title="${esc(c.name)}">${esc(c.name)}</b><span>${c.n>1?c.n+'× · ':''}${ago(c.t)}</span></div><p title="${esc(c.why)}">${esc(c.why)}</p>
+    <div class="acts"><button class="go" data-track="${i}">track</button><button data-dismiss="${esc(c.key)}">dismiss</button></div></div>`).join('')
+    ||'<div class="empty lowsig">Nothing to review. Activity the watch logs that doesn\'t fit a tracked lead shows up here.</div>';
+  renderCandidates.list=cs;
+}
+$('#candList').addEventListener('click',e=>{const t=e.target.closest('button[data-track]'),d=e.target.closest('button[data-dismiss]');
+  if(t){const c=renderCandidates.list[+t.dataset.track];if(c)openLeadEditor(c.id||null,{name:c.name,kind:c.kind,terms:c.term||'',note:c.why})}
+  if(d){const v=(store.get('sc.dismissed')||'').split('\n').filter(Boolean);v.push(d.dataset.dismiss);store.set('sc.dismissed',v.slice(-200).join('\n'));renderCandidates()}});
+
+/* ── add, edit or stop tracking a lead: the Mac app saves leads/leads.json in your own data folder; elsewhere you get the text to paste ── */
+const CAN_WRITE=()=>!!window.__SC_WRITABLE&&!isSample();
+const LE={id:null};
+const csv=s=>String(s||'').split(',').map(x=>x.trim()).filter(Boolean);
+function openLeadEditor(id,pre){
+  const f=$('#leadForm').elements,r=id?regOf(id):{},inReg=!!(id&&regList().some(l=>l.id===id));LE.id=id;pre=pre||{};
+  $('#leTitle').textContent=inReg?`edit lead · ${LNAME[id]||id}`:id?`add ${LNAME[id]||id} to your leads`:'track a new lead';
+  f.lname.value=pre.name||r.name||(id?LNAME[id]:'')||'';f.lkind.value=pre.kind||r.kind||(id&&LKIND[id])||'target';
+  f.lterms.value=pre.terms!=null&&pre.terms!==''?pre.terms:(r.watch_terms||[]).join(', ');f.ltags.value=(r.tags||[]).join(', ');f.lnote.value=(pre.note||r.note||'').slice(0,500);
+  $('#leRetire').style.display=inReg?'':'none';
+  const m=$('#leMsg');m.className='le-msg';m.textContent=CAN_WRITE()?'Saved to leads/leads.json in your data folder.':'This copy can\'t save files (bundled sample data, or browser mode). Saving gives you the text to paste into leads/leads.json in your own data folder.';
+  $('#leadEd').classList.add('on');setTimeout(()=>f.lname.focus(),30);
+}
+function closeLeadEditor(){$('#leadEd').classList.remove('on')}
+function saveRegistry(list){
+  const doc={schema_version:1,updated_utc:new Date().toISOString().replace(/\.\d+Z$/,'Z'),leads:list},m=$('#leMsg');
+  if(CAN_WRITE()){m.className='le-msg';m.textContent='saving…';native({cmd:'saveLeads',json:JSON.stringify(doc)});return}
+  const txt=JSON.stringify(doc,null,2);m.className='le-msg';m.innerHTML='Paste this as <b>leads/leads.json</b> in your data folder, then reload:<textarea readonly rows="8"></textarea><div class="acts" style="margin-top:6px"><button type="button" class="go" data-a="copy">copy</button></div>';
+  m.querySelector('textarea').value=txt;m.dataset.txt=txt;
+}
+$('#leadForm').addEventListener('submit',e=>{e.preventDefault();const f=e.currentTarget.elements,name=f.lname.value.trim(),m=$('#leMsg');
+  const terms=csv(f.lterms.value),tags=csv(f.ltags.value);
+  const bad=!name?'Give the lead a name.':name.length>60?'Keep the name to 60 characters.':terms.length>20||terms.some(t=>t.length>80)?'Up to 20 search terms, 80 characters each.':tags.length>12||tags.some(t=>t.length>60)?'Up to 12 tags, 60 characters each.':null;
+  if(bad){m.className='le-msg err';m.textContent=bad;return}
+  const list=JSON.parse(JSON.stringify(regList())),i=LE.id?list.findIndex(l=>l.id===LE.id):-1;
+  let id=LE.id||slug(name);if(!LE.id){let k=2;const base=id;while(list.some(l=>l.id===id)||(LEADS.includes(id)&&!LUNREG[id]))id=`${base.slice(0,36)}_${k++}`}
+  const prev=i>=0?list[i]:{};
+  const entry={...prev,id,name,kind:f.lkind.value,watch_terms:terms,tags,note:f.lnote.value.trim().slice(0,500),added_utc:prev.added_utc||new Date().toISOString().replace(/\.\d+Z$/,'Z')};
+  if(!entry.note)delete entry.note;delete entry.archived;
+  if(i>=0)list[i]=entry;else list.push(entry);
+  LE.saved=name;saveRegistry(list)});
+$('#leadEd').addEventListener('click',e=>{const b=e.target.closest('button[data-a]');if(e.target.id==='leadEd'){closeLeadEditor();return}if(!b)return;
+  if(b.dataset.a==='cancel')closeLeadEditor();
+  else if(b.dataset.a==='copy'){const t=$('#leMsg').dataset.txt||'';if(IS_APP)native({cmd:'copy',text:t});else if(navigator.clipboard)navigator.clipboard.writeText(t);b.textContent='copied'}
+  else if(b.dataset.a==='retire'&&LE.id){if(!confirm(`Stop tracking ${LNAME[LE.id]||LE.id}?\n\nIts history stays in the watch log; it just leaves the dashboard. You can add it back later.`))return;
+    const list=JSON.parse(JSON.stringify(regList())),i=list.findIndex(l=>l.id===LE.id);if(i<0)return;list[i]={...list[i],archived:true};LE.saved=null;saveRegistry(list)}});
+$('#addLeadBtn').addEventListener('click',()=>openLeadEditor(null));
+// the Mac app answers a save here
+function leadsSaved(ok,msg){const m=$('#leMsg');if(!ok){m.className='le-msg err';m.textContent=msg||'Could not save.';return}
+  closeLeadEditor();toast(LE.saved?'lead saved':'lead retired',LE.saved?`${LE.saved} is in your lead list. The watch searches it once its instructions read leads/leads.json.`:'It no longer shows on the dashboard.');refresh(true)}
 
 /* ═══════════════ 02 timeline ═══════════════ */
 const T={built:false,c:null,w:0,h:0,n:0,P:null,list:[],groups:[],sp:[],nodes:[],spin:-.5,drag:null,hover:-1,sel:-1,def:0,mx:-1e4,my:-1e4,inside:false,NP:16,uc:()=>0,hw:0};
@@ -1309,7 +1431,7 @@ function streamFrame(t){
 }
 function renderTimeline(){
   $('#reqTot').textContent=S.totReq+' req';$('#rowTot').textContent=S.totRows+' rows';$('#streamTot').textContent=S.totRows+' rows · '+S.R.length+' runs';
-  const q=[];S.R.forEach(r=>S.flagsOf(r).forEach(k=>{const det=k==='cross_run_reuse'?r.flags.cross_run_reuse_detail:k==='new_carrier_or_relay'?S.moving(r).filter(l=>l.id!=='newspapers_com').map(l=>LNAME[l.id]).join(', '):'';
+  const q=[];S.R.forEach(r=>S.flagsOf(r).forEach(k=>{const det=k==='cross_run_reuse'?r.flags.cross_run_reuse_detail:k==='new_carrier_or_relay'?S.moving(r).filter(l=>LKIND[l.id]!=='target').map(l=>LNAME[l.id]).join(', '):'';
     q.push(`<div><span class="q">›</span><span class="w">${hm(r.run_utc)}</span><span class="m"><b>${FLAB[k]}</b>${det?`<small>${esc(det)}</small>`:''}</span></div>`)}));
   $('#flagQueue').innerHTML=q.join('')||'<div class="empty">no flag events in loaded runs</div>';$('#qCount').textContent=q.length+' events';
 }
@@ -1327,7 +1449,7 @@ function renderRunLog(){
   $('#rlChips').innerHTML=[['runs',R.length],['requests',S.totReq],['rows',S.totRows],['links',S.totLinks],['flagged',S.flagRuns,S.flagRuns?'re':''],['access',`${S.accessOk}/${R.length}`]]
     .map(([k,v,c])=>`<div><span>${k}</span><b class="${c||''}">${v}</b></div>`).join('');
   const tb=$('#runBody');tb.innerHTML='';
-  R.forEach((r,i)=>{const mv=S.moving(r),fl=S.flagsOf(r),tr=document.createElement('tr');tr.className='row';tr.dataset.run=r.run_utc;
+  R.forEach((r,i)=>{const mv=S.moving(r),fl=S.flagsOf(r),tr=document.createElement('tr');tr.className='row'+(!S.rowsOf(r)&&!fl.length&&r.access_ok!==false?' lowsig':'');tr.dataset.run=r.run_utc;
     tr.innerHTML=`<td class="idx">${pad(R.length-i)}</td><td class="ts">${stamp(r.run_utc)}${zs()}</td><td class="c-2">${esc(r.trigger)}</td>
       <td class="${r.access_ok===false?'c-re':'c-te'}">${r.access_ok===false?'✗ fail':'✓ ok'}</td><td class="c-cy">${r.requests_made}</td><td class="${S.rowsOf(r)?'c-am':'c-d'}">${S.rowsOf(r)}</td>
       <td><div class="h6">${r.leads.map(l=>`<i title="${LNAME[l.id]} · ${esc(l.status)}" style="${l.new_rows?`background:${rgba(LCOL[l.id],.85)};`:''}${l.status==='new'?'border-color:var(--re)':''}"></i>`).join('')}</div></td>
@@ -1357,11 +1479,11 @@ function narrative(){
   out.push(['window',`${R.length} runs (${stamp(S.asc[0].run_utc)} → ${stamp(L.run_utc)}${zs()}): <b>${S.totRows} agent scans</b> across ${S.leadsMoved} lead${S.leadsMoved===1?'':'s'}; alerts raised in ${S.flagRuns} run${S.flagRuns===1?'':'s'}.`]);
   if(S.reuseCount){const ids=R.filter(r=>r.flags.cross_run_reuse===true).map(r=>((r.flags.cross_run_reuse_detail||'').match(/\d{6,}/)||[])[0]).filter(Boolean).reverse();
     out.push(['pattern',`Cross-run reuse fired <b>${S.reuseCount}×</b>${ids.length?` (pages ${ids.join(' and ')})`:''}: episodes opening on page IDs an earlier run found, without searching first.`])}
-  if(S.cadence&&Date.now()>S.cadence.next+2*3.6e6){const c=S.cadence;out.push(['cadence',`The predicted newspapers.com episode around <b>${stamp(new Date(c.next).toISOString())}${zs()}</b> didn't appear. The fixed-schedule idea is weakening; wait for the next episode to re-estimate.`])}
-  else if(S.cadence){const c=S.cadence;out.push(['cadence',`New newspapers.com episodes come ≈ <b>${dur(c.gap)}</b> apart (n=${c.n}). If that holds, the next one is due around <b>${stamp(new Date(c.next).toISOString())}${zs()}</b> (${ago(new Date(c.next).toISOString())}). Low confidence: two points make a line, not a pattern.`])}
+  if(S.cadence&&Date.now()>S.cadence.next+2*3.6e6){const c=S.cadence;out.push(['cadence',`The predicted ${LNAME[c.lead]} episode around <b>${stamp(new Date(c.next).toISOString())}${zs()}</b> didn't appear. The fixed-schedule idea is weakening; wait for the next episode to re-estimate.`])}
+  else if(S.cadence){const c=S.cadence;out.push(['cadence',`New ${LNAME[c.lead]} episodes come ≈ <b>${dur(c.gap)}</b> apart (n=${c.n}). If that holds, the next one is due around <b>${stamp(new Date(c.next).toISOString())}${zs()}</b> (${ago(new Date(c.next).toISOString())}). Low confidence: two points make a line, not a pattern.`])}
   {const TH=(THREADS.threads||[]).filter(t=>t.misalignment&&t.misalignment.rung>0&&thIsLive(t)).sort((a,b)=>b.misalignment.rung-a.misalignment.rung);
     if(TH.length)out.push(['misalignment',TH.map(t=>`<b>${esc(t.title)}</b> reached M${t.misalignment.rung} (${esc(ladName(t.misalignment.rung).toLowerCase())})`).join('; ')+(TH[0].misalignment.rung>=4?'. At least one live thread is at M4 or above.':'. No live thread has reached M4 (reaching for access) yet.')])}
-  const carriers=['pastehtml_carrier','jina_relay','cors_lol_relay','generic_carriers'],act=carriers.filter(id=>S.leadTot[id].rows);
+  const carriers=LEADS.filter(id=>LKIND[id]==='relay'||LKIND[id]==='carrier'),act=carriers.filter(id=>S.leadTot[id].rows);
   out.push(['relays',act.length?`Carriers seen in this window: ${act.map(id=>`<b>${LNAME[id]}</b> +${S.leadTot[id].rows}`).join(', ')}. Quiet: ${carriers.filter(id=>!S.leadTot[id].rows).map(id=>LNAME[id]).join(', ')}.`:'No carrier or relay activity in this window.']);
   return out;
 }
@@ -1370,13 +1492,13 @@ function tripwires(){
   const rc=S.reuseCount;out.push({n:'3rd page-ID jump without a prior search',s:rc>=3?['TRIPPED',C.re]:rc?['ARMED '+rc+'/3',C.am]:['IDLE',C.tx3],d:'raises H1 (cross-run memory) to high',p:Math.min(1,rc/3),col:rc>=3?C.re:C.am});
   if(S.cadence){const due=S.cadence.next,now=Date.now(),win=2*3.6e6;
     const st=now<due-win?['T−'+dur(due-now),C.tx2]:now<=due+win?['WINDOW OPEN',C.am]:['MISSED',C.tx3];
-    out.push({n:`newspapers.com episode near ${stamp(new Date(due).toISOString())}${zs()}`,s:st,d:`${dur(S.cadence.gap)} cadence from ${S.cadence.n} episodes; a hit strengthens H3 (fixed task set)`})}
+    out.push({n:`${LNAME[S.cadence.lead]} episode near ${stamp(new Date(due).toISOString())}${zs()}`,s:st,d:`${dur(S.cadence.gap)} cadence from ${S.cadence.n} episodes; a hit strengthens H3 (fixed task set)`})}
   const lastRelay=R.find(r=>r.flags.new_carrier_or_relay===true);
-  out.push({n:'new relay or carrier host',s:L.flags.new_carrier_or_relay===true?['TRIPPED',C.re]:['CLEAR',C.te],d:lastRelay?`last: ${S.moving(lastRelay).filter(l=>l.id!=='newspapers_com').map(l=>LNAME[l.id]).join(', ')||'—'} on ${stamp(lastRelay.run_utc)}${zs()}`:'none in loaded runs'});
+  out.push({n:'new relay or carrier host',s:L.flags.new_carrier_or_relay===true?['TRIPPED',C.re]:['CLEAR',C.te],d:lastRelay?`last: ${S.moving(lastRelay).filter(l=>LKIND[l.id]!=='target').map(l=>LNAME[l.id]).join(', ')||'—'} on ${stamp(lastRelay.run_utc)}${zs()}`:'none in loaded runs'});
   const comm=R.filter(r=>r.flags.agent_communication_signs===true).length;
   out.push({n:'read-back or reply between runs',s:comm?['TRIPPED',C.re]:['CLEAR',C.te],d:comm?`${comm} run(s) flagged agent comms`:'would move H6 (coordination); none seen'});
-  const am=S.leadTot.amap_fleet,amNow=L.leads.find(l=>l.id==='amap_fleet');
-  out.push({n:'amap fleet follow-up scan',s:amNow&&(amNow.status==='new'||amNow.status==='active')?['TRIPPED',C.re]:['WAITING',C.tx2],d:am.newest?`last tagged activity ${stamp(am.newest)}${zs()} (${ago(am.newest)})`:'no activity in window'});
+  LEADS.filter(id=>LKIND[id]==='fleet').forEach(id=>{const am=S.leadTot[id],amNow=L.leads.find(l=>l.id===id);
+    out.push({n:`${LNAME[id]} follow-up scan`,s:amNow&&(amNow.status==='new'||amNow.status==='active')?['TRIPPED',C.re]:['WAITING',C.tx2],d:am.newest?`last tagged activity ${stamp(am.newest)}${zs()} (${ago(am.newest)})`:'no activity in window'})});
   const pop=R.filter(r=>r.flags.new_population===true).length;
   out.push({n:'new agent population',s:pop?['TRIPPED',C.re]:['CLEAR',C.te],d:pop?`${pop} run(s) flagged`:'no new population flagged'});
   return out;
@@ -1405,7 +1527,7 @@ function renderInterp(){
       ${h.moves?`<div class="hmv"><b>MOVES IT</b>${esc(h.moves)}</div>`:''}</div>`}).join('')||'<div class="empty">no hypotheses in leads/interpretation.json</div>';
   const tw=tripwires();
   $('#tripCount').textContent=tw.filter(x=>/TRIPPED|ARMED|OPEN/.test(x.s[0])).length+' live';
-  $('#tripList').innerHTML=tw.map(x=>`<div class="trip"><span class="tn">${esc(x.n)}</span><span class="ts" style="color:${x.s[1]}">${esc(x.s[0])}</span><span class="td">${esc(x.d)}</span>${x.p!=null?`<div class="tb">${[0,1,2].map(k=>`<i style="${k<Math.round(x.p*3)?`background:${x.col}`:''}"></i>`).join('')}</div>`:''}</div>`).join('');
+  $('#tripList').innerHTML=tw.map(x=>`<div class="trip${/^(CLEAR|IDLE|WAITING|MISSED)/.test(x.s[0])?' lowsig':''}"><span class="tn">${esc(x.n)}</span><span class="ts" style="color:${x.s[1]}">${esc(x.s[0])}</span><span class="td">${esc(x.d)}</span>${x.p!=null?`<div class="tb">${[0,1,2].map(k=>`<i style="${k<Math.round(x.p*3)?`background:${x.col}`:''}"></i>`).join('')}</div>`:''}</div>`).join('');
   const ev=(INTERP.evidence||[]).slice().sort((a,b)=>D(b.utc)-D(a.utc));
   $('#chainCount').textContent=ev.length+' events';
   $('#chain').innerHTML=ev.map(e=>{const kc=KIND[e.kind]||C.tx2;return `<div class="ev ${e.kind==='reuse'?'hot':''}" style="--kc:${kc}"><div class="eh"><span class="et">${stamp(e.utc)}${zs()}</span><span class="ek">${esc(e.kind)}</span><span class="el">${esc(LNAME[e.lead]||e.lead||'')}</span></div><p>${esc(e.text)}</p></div>`}).join('');
@@ -1494,7 +1616,7 @@ function renderThreads(){
   const shown=all.filter(th=>TH_FILTER==='all'||(TH_FILTER==='live'?thIsLive(th):TH_FILTER==='closed'?th.status==='closed'||th.status==='dormant':th.status===TH_FILTER));
   if(!TH_SEL||!all.find(t=>t.id===TH_SEL))TH_SEL=(all.find(thIsLive)||all[0]||{}).id||null;
   $('#thList').innerHTML=shown.map(th=>{const lv=threadLive(th),tot=rubTotal(th),[,bc]=rubBand(tot),last=thLast(th,lv),moving=lv&&lv.st!=='quiet';
-    return `<div class="tcard ${th.id===TH_SEL?'on':''}" data-id="${esc(th.id)}"><span class="sd ${moving?'live':''}" style="background:${moving?C.am:TSTAT[th.status]||C.tx3}"></span><span class="tt">${esc(th.title)}</span><span class="ts2">${last?ago(last):'—'}</span>
+    return `<div class="tcard ${th.id===TH_SEL?'on':''}${!moving&&!thIsLive(th)?' lowsig':''}" data-id="${esc(th.id)}"><span class="sd ${moving?'live':''}" style="background:${moving?C.am:TSTAT[th.status]||C.tx3}"></span><span class="tt">${esc(th.title)}</span><span class="ts2">${last?ago(last):'—'}</span>
       <span class="tk"><span style="color:${TSTAT[th.status]||C.tx2}">${esc(th.status)}</span><span>${esc(th.kind||'')}</span><span class="sb"><i style="width:${tot*5}%;background:${bc}"></i></span><span style="color:${bc}">${tot}</span>${th.misalignment?`<span class="mr" style="color:${rungCol(th.misalignment.rung)}" title="misalignment: ${esc(ladName(th.misalignment.rung))}">M${th.misalignment.rung}</span>`:''}</span></div>`}).join('')||'<div class="empty">no threads in this filter</div>';
   const th=all.find(t=>t.id===TH_SEL);
   if(!th){$('#thDetail').innerHTML='<div class="empty">Add threads in leads/threads.json.</div>';$('#thRubric').innerHTML='';$('#thLivePnl').style.display='none';$('#thSrcs').innerHTML='';return}
@@ -1814,16 +1936,16 @@ function setTab(tab){
   if(history.replaceState)history.replaceState(null,'','#'+tab);
 }
 function renderAll(anim){
-  S=derive();renderChrome();renderOverview(anim);buildConst();renderTimeline();buildTorus();renderRunLog();renderInterp();renderThreads();renderVectors();renderIntel();redrawStatic(curTab);briefs();
+  applyRegistry();S=derive();renderChrome();renderOverview(anim);renderCandidates();buildConst();renderTimeline();buildTorus();renderRunLog();renderInterp();renderThreads();renderVectors();renderIntel();redrawStatic(curTab);briefs();
 }
 // re-render everything that prints a time, without rebuilding the animations
 function retime(){document.documentElement.classList.toggle('h12',TF.h12);$('#hBtn').textContent=TF.h12?'am/pm':'24h';$('#zBtn').textContent=tzName().toLowerCase();
-  if(!S)return;renderChrome();renderOverview(false);renderTimeline();renderSelRun();renderRunLog();renderInterp();renderThreads();renderVectors();renderIntel();redrawStatic(curTab);briefs();checkSince()}
+  if(!S)return;renderChrome();renderOverview(false);renderCandidates();renderTimeline();renderSelRun();renderRunLog();renderInterp();renderThreads();renderVectors();renderIntel();redrawStatic(curTab);briefs();checkSince()}
 let busy=false;
 async function refresh(manual){
   if(busy)return;busy=true;const b=$('#refreshBtn');if(manual){b.classList.remove('busy');void b.offsetWidth;b.classList.add('busy')}
-  try{const prev=S&&S.R[0]?S.R[0].run_utc:null;const [a,i,th,vx,wl]=await Promise.all([loadData(),loadInterp(),loadThreads(),loadVectors(),loadWatchlist()]);
-    if(a||i||th||vx||wl||!S)renderAll(true);else{renderChrome();renderInterp()}
+  try{const prev=S&&S.R[0]?S.R[0].run_utc:null;const [a,i,th,vx,wl,lg]=await Promise.all([loadData(),loadInterp(),loadThreads(),loadVectors(),loadWatchlist(),loadLeads()]);
+    if(a||i||th||vx||wl||lg||!S)renderAll(true);else{renderChrome();renderInterp()}
     if(a&&prev)announceNewRuns(prev);
     if(curTab==='transcripts'&&manual)loadTranscript(TR_CUR)}finally{busy=false}
 }
@@ -1870,6 +1992,7 @@ const HELP={
   overview:[['#heroOv','Each cloud is one lead: a site, relay or fleet we track. Brighter and coloured means it moved in the latest watch. Lines run to the "watch" node in the middle. Click a cloud for details.'],
     ['#slVal','Activity per watch run, oldest to newest: agent scans we found (amber), searches our watch made (blue), alerts raised (red).'],
     ['#flagList','The four alarms the watch checks each run. Red means raised in the latest run. The strip under each shows which past runs raised it. Click one to open that run.'],
+    ['#candList','Activity the watch already logged that no tracked lead covers. Track turns it into a lead; dismiss hides it.'],
     ['#leadState','Every lead with its status from the latest watch. The bar shows how many agent scans it had. Click a row to zoom to it.'],
     ['#telemetry','Totals across all loaded runs.'],
     ['#watchLog','Each watch run, newest first, and what it saw. Click a line to open that run.'],
@@ -1962,7 +2085,7 @@ if(mqLight&&mqLight.addEventListener)mqLight.addEventListener('change',()=>{if(t
 
 // plain-words lines: one under each tab's question, one under each panel title
 const ELI_TAB={"overview": "Think of this as a radar screen. Each glowing cloud is a website or tool that AI bots have been caught using; coloured ones were busy recently. The little eye travelling between them is our watch, reading each one in turn.", "timeline": "Every slice of the ring is one time we checked. Orange strands mean we caught bots that time; blue strands mean we looked and found nothing.", "runlog": "A diary with one row for every time we checked, saying what we found.", "interp": "Our best guesses about what the bots are up to, and how sure we are about each one.", "threads": "Each story is one group of bots we've followed over time, like a detective's case file.", "vectors": "A list of sneaky places bots could use to pass notes to each other, and how we'd notice.", "transcripts": "Our written notes, so you can read the details in full.", "intel": "Links to the public reports that show what we saw. Click one to check the evidence yourself.", "archives": "Old bot swarms that other researchers saved, so you can read what those bots actually wrote."};
-const ELI_PANEL={"slVal": "How busy each check was, oldest to newest. A bump means we caught bots.", "flagList": "Four alarms. Red means that alarm went off on the most recent check.", "leadState": "Is each website being used by bots right now, or quiet?", "telemetry": "The totals, added up across every check.", "watchLog": "A running list of what each check found, newest at the top.", "leadBars": "Websites the bots used most. Longer bar = more use.", "cvRadar": "The further the shape stretches toward a name, the more bot activity there.", "cvHeat": "Rows are websites, columns are checks. A filled square means bots showed up then.", "cvGauge": "How worried to be right now. Bigger = worse.", "latestRun": "A short summary of the most recent check.", "cvReq": "How many searches we made each time we checked.", "cvStack": "How many bot sightings each check caught, coloured by website.", "flagQueue": "Every alarm that has gone off, newest first. Click one for details.", "selRun": "Details of the check you clicked on the ring.", "cvStream": "The same sightings as flowing lines, so busy and quiet stretches stand out.", "runBody": "One row per check. Click a row to see everything it found.", "hypList": "Each guess about what's going on, with how sure we are. The bar moves as new evidence comes in.", "ladder": "How badly a bot broke the rules, from M0 (it just kept trying) to M6 (it hurt someone else). Higher is worse.", "cvShift": "Did things get busier or quieter? Each dot moved from the earlier checks to the later ones.", "tripList": "Signs we're watching for that would change our minds.", "chain": "The key moments in order, like clues pinned to a board.", "caveats": "What we're still unsure about, so we don't claim too much.", "thList": "Pick a story to read its case file.", "thRubric": "A score out of 20 for how strong the evidence is. More filled bars means a stronger case.", "thLive": "Fresh activity from our latest checks for this story.", "thSrcs": "Where the information came from, so you can check it.", "vxBar": "How many hiding places we know about, and how many we already watch (green).", "vxRot": "What our checker searches each time. It rotates through a list so it covers everything over a few days.", "vxCopy": "Copy new search words to add to the checker.", "vxPrin": "The rules of thumb we use to guess where bots go next.", "fileList": "Pick a document to read.", "outline": "Jump to a section of the document.", "linkList": "Each link is a public report about one bot sighting. It opens in your normal web browser.", "cvPolar": "Each slice is one check; a bigger slice found more reports.", "cvPareto": "Which websites produced the most reports, biggest first.", "arList": "Past bot swarms that other researchers recorded. Click one to explore it.", "arSource": "Where this archive came from.", "cvArAll": "When each swarm was active, all on one timeline.", "arChartTitle": "How busy the chosen swarm was each day. Click a day to read what was written then.", "arSearch": "Every message the bots left. Search or filter to find something.", "arMeta": "The full text of the message you picked. It's shown as plain text and never run."};
+const ELI_PANEL={"candList": "Things the watch spotted that don't belong to anything we track yet. Press track to start following one, or dismiss to hide it.", "slVal": "How busy each check was, oldest to newest. A bump means we caught bots.", "flagList": "Four alarms. Red means that alarm went off on the most recent check.", "leadState": "Is each website being used by bots right now, or quiet?", "telemetry": "The totals, added up across every check.", "watchLog": "A running list of what each check found, newest at the top.", "leadBars": "Websites the bots used most. Longer bar = more use.", "cvRadar": "The further the shape stretches toward a name, the more bot activity there.", "cvHeat": "Rows are websites, columns are checks. A filled square means bots showed up then.", "cvGauge": "How worried to be right now. Bigger = worse.", "latestRun": "A short summary of the most recent check.", "cvReq": "How many searches we made each time we checked.", "cvStack": "How many bot sightings each check caught, coloured by website.", "flagQueue": "Every alarm that has gone off, newest first. Click one for details.", "selRun": "Details of the check you clicked on the ring.", "cvStream": "The same sightings as flowing lines, so busy and quiet stretches stand out.", "runBody": "One row per check. Click a row to see everything it found.", "hypList": "Each guess about what's going on, with how sure we are. The bar moves as new evidence comes in.", "ladder": "How badly a bot broke the rules, from M0 (it just kept trying) to M6 (it hurt someone else). Higher is worse.", "cvShift": "Did things get busier or quieter? Each dot moved from the earlier checks to the later ones.", "tripList": "Signs we're watching for that would change our minds.", "chain": "The key moments in order, like clues pinned to a board.", "caveats": "What we're still unsure about, so we don't claim too much.", "thList": "Pick a story to read its case file.", "thRubric": "A score out of 20 for how strong the evidence is. More filled bars means a stronger case.", "thLive": "Fresh activity from our latest checks for this story.", "thSrcs": "Where the information came from, so you can check it.", "vxBar": "How many hiding places we know about, and how many we already watch (green).", "vxRot": "What our checker searches each time. It rotates through a list so it covers everything over a few days.", "vxCopy": "Copy new search words to add to the checker.", "vxPrin": "The rules of thumb we use to guess where bots go next.", "fileList": "Pick a document to read.", "outline": "Jump to a section of the document.", "linkList": "Each link is a public report about one bot sighting. It opens in your normal web browser.", "cvPolar": "Each slice is one check; a bigger slice found more reports.", "cvPareto": "Which websites produced the most reports, biggest first.", "arList": "Past bot swarms that other researchers recorded. Click one to explore it.", "arSource": "Where this archive came from.", "cvArAll": "When each swarm was active, all on one timeline.", "arChartTitle": "How busy the chosen swarm was each day. Click a day to read what was written then.", "arSearch": "Every message the bots left. Search or filter to find something.", "arMeta": "The full text of the message you picked. It's shown as plain text and never run."};
 const eliOn=()=>!document.documentElement.classList.contains('no-eli');
 function injectEli(){
   for(const [tab,txt] of Object.entries(ELI_TAB)){const ch=document.querySelector('#pane-'+tab+' .chap');if(!ch||ch.querySelector('.eli5'))continue;
@@ -1988,7 +2111,7 @@ window.addEventListener('mouseup',()=>{if(K.drag){K._dragged=K.drag.moved;K.drag
 cvC.addEventListener('mouseleave',()=>{K.inside=false;K.mx=K.my=-1e4;K.hover=null});
 cvC.addEventListener('click',e=>{if(K._dragged){K._dragged=false;return}if(K.hover&&K.hover!==K.focus)focusLobe(K.hover);else unfocus()});
 
-$('#focusCard').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.x)unfocus();else if(b.dataset.go==='runlog'){const r=S.R.find(r=>r.leads.some(l=>l.id===K.focus&&(l.status==='new'||l.status==='active')));r?openRun(r.run_utc):setTab('runlog')}else if(b.dataset.go)setTab(b.dataset.go)});
+$('#focusCard').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.edit){openLeadEditor(K.focus);return}if(b.dataset.x)unfocus();else if(b.dataset.go==='runlog'){const r=S.R.find(r=>r.leads.some(l=>l.id===K.focus&&(l.status==='new'||l.status==='active')));r?openRun(r.run_utc):setTab('runlog')}else if(b.dataset.go)setTab(b.dataset.go)});
 const cvT=$('#cvTorus');
 cvT.addEventListener('mousedown',e=>{T.drag={x:e.clientX,s:T.spin,moved:false}});
 window.addEventListener('mousemove',e=>{const r=cvT.getBoundingClientRect();T.mx=e.clientX-r.left;T.my=e.clientY-r.top;T.inside=T.mx>=0&&T.my>=0&&T.mx<=r.width&&T.my<=r.height;
@@ -2003,7 +2126,7 @@ document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey&&e.key
   if(/^[1-9]$/.test(e.key))setTab(TABS[+e.key-1]);else if(e.key==='r')refresh(true);
   else if(e.key==='t')$('#hBtn').click();else if(e.key==='e'){const o=['eli5','normal','complex'];setRead(o[(o.indexOf(readLevel())+1)%3])}else if(e.key==='v')$('#viewBtn').click();else if(e.key==='f')triggerFlash('activity',['newspapers_com']);
   else if(e.key==='?'||e.key==='h')toggleHelp();
-  else if(e.key==='Escape'){toggleHelp(false);$('.vwrap').classList.remove('on');$('#toast').classList.remove('on');unfocus();if(T.sel>=0){T.sel=-1;renderSelRun()}}});
+  else if(e.key==='Escape'){closeLeadEditor();toggleHelp(false);$('.vwrap').classList.remove('on');$('#toast').classList.remove('on');unfocus();if(T.sel>=0){T.sel=-1;renderSelRun()}}});
 let rsT=null;window.addEventListener('resize',()=>{clearTimeout(rsT);rsT=setTimeout(()=>{redrawStatic(curTab);if($('#help').classList.contains('on'))layoutHelp()},120)});
 
 // render loop
@@ -2016,11 +2139,11 @@ setInterval(()=>{$('#fClock').textContent=`${tzName().toLowerCase()} ${clock(tpa
 setInterval(()=>{if(S){renderChrome();briefs();if(curTab==='interp')renderInterp();if(curTab==='threads')renderThreads()}},60000);
 
 // boot
-window.SC={refresh:()=>refresh(true),setTab,runScan,flash:k=>triggerFlash(k||'activity',[])};
+window.SC={refresh:()=>refresh(true),setTab,runScan,leadsSaved,flash:k=>triggerFlash(k||'activity',[])};
 (async()=>{
   let auto=IS_APP;{const v=store.get('sc.auto');if(v!=null)auto=v==='1'}
   let tab=(location.hash||'').slice(1);if(!$('#pane-'+tab))tab=store.get('sc.tab')||'overview';
-  await Promise.all([loadData(),loadInterp(),loadThreads(),loadVectors(),loadWatchlist()]);injectEli();applyTheme();retime();renderAll(true);setTab(tab);setAuto(auto);checkSince();requestAnimationFrame(loop);
+  await Promise.all([loadData(),loadInterp(),loadThreads(),loadVectors(),loadWatchlist(),loadLeads()]);injectEli();applyTheme();retime();renderAll(true);setTab(tab);setAuto(auto);checkSince();requestAnimationFrame(loop);
 })();
 </script>
 </body>

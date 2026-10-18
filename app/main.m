@@ -2,7 +2,8 @@
 //
 // The page is served from a private, read-only swarm:// scheme rooted at the data folder
 // (SWARMCHASER_ROOT, else the sample data bundled in the app), so no server is needed.
-// Web links go through a host policy to the default browser. Nothing is written or sent anywhere.
+// Web links go through a host policy to the default browser. Nothing is sent anywhere.
+// The one file it writes is leads/leads.json in your own data folder, when you save in the lead editor.
 //
 // Debug: SwarmChaser --snapshot out.png [--tab interp] [--size 1480x920]
 //        renders one tab to a PNG and quits.
@@ -91,6 +92,7 @@ static NSString *const kScheme = @"swarm";
 @property (strong) WKWebView *web;
 @property (strong) LocalScheme *scheme;
 @property (copy) NSURL *projectRoot;
+@property BOOL leadsWritable;
 @property (copy) NSString *snapshotPath, *snapshotTab, *snapshotTheme, *snapshotDetail;
 @property NSSize snapshotSize;
 @end
@@ -135,6 +137,10 @@ static NSString *const kScheme = @"swarm";
     NSData *savedJSON = [NSJSONSerialization dataWithJSONObject:saved options:0 error:nil] ?: [@"{}" dataUsingEncoding:NSUTF8StringEncoding];
     NSString *storeJS = [NSString stringWithFormat:@"window.__SC_STORE=%@;", [[NSString alloc] initWithData:savedJSON encoding:NSUTF8StringEncoding]];
     [ucc addUserScript:[[WKUserScript alloc] initWithSource:storeJS injectionTime:WKUserScriptInjectionTimeAtDocumentStart forMainFrameOnly:YES]];
+    // the lead editor can save only when the data folder is your own and writable, never the bundled sample
+    NSString *rootPath = self.projectRoot.URLByStandardizingPath.URLByResolvingSymlinksInPath.path;
+    self.leadsWritable = ![rootPath isEqualToString:bundled.URLByStandardizingPath.URLByResolvingSymlinksInPath.path] && [[NSFileManager defaultManager] isWritableFileAtPath:rootPath];
+    [ucc addUserScript:[[WKUserScript alloc] initWithSource:(self.leadsWritable ? @"window.__SC_WRITABLE=true;" : @"window.__SC_WRITABLE=false;") injectionTime:WKUserScriptInjectionTimeAtDocumentStart forMainFrameOnly:YES]];
     // snapshot-only test overrides (--theme, --detail): win over saved settings, never written back
     NSMutableDictionary *force = [NSMutableDictionary dictionary];
     if (self.snapshotPath && self.snapshotTheme) force[@"sc.theme"] = self.snapshotTheme;
@@ -339,6 +345,9 @@ typedef NS_ENUM(NSInteger, SCLinkPolicy) { SCLinkOpen, SCLinkAsk, SCLinkBlock };
             NSApp.dockTile.badgeLabel = badge;
             [NSApp requestUserAttention:NSInformationalRequest];
         }
+    } else if ([cmd isEqualToString:@"saveLeads"] && [b[@"json"] isKindOfClass:[NSString class]]) {
+        NSString *err = [self saveLeads:b[@"json"]];
+        [self.web evaluateJavaScript:[NSString stringWithFormat:@"window.SC&&SC.leadsSaved(%@,%@)", err ? @"false" : @"true", [AppDelegate jsString:err ?: @"saved"]] completionHandler:nil];
     } else if ([cmd isEqualToString:@"clearBadge"]) {
         NSApp.dockTile.badgeLabel = nil;  // the page asked to clear notifications
     } else if ([cmd isEqualToString:@"store"] && [b[@"key"] isKindOfClass:[NSString class]] && [b[@"value"] isKindOfClass:[NSString class]]) {
@@ -359,6 +368,64 @@ typedef NS_ENUM(NSInteger, SCLinkPolicy) { SCLinkOpen, SCLinkAsk, SCLinkBlock };
     if ([pref isEqualToString:@"light"]) self.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
     else if ([pref isEqualToString:@"dark"]) self.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
     else self.window.appearance = nil;  // follow macOS
+}
+
+#pragma mark lead registry (the one file the app writes)
+
+// The lead editor saves leads/leads.json in your own data folder. Every field is checked against an
+// allow-list and the file is rebuilt from the checked values only; nothing else is ever written.
+- (NSString *)saveLeads:(NSString *)json {
+    if (!self.leadsWritable) return @"This data folder can't be changed: it's the bundled sample, or you don't have write access. Point SWARMCHASER_ROOT at a folder of your own to save leads.";
+    if (json.length > 200000) return @"The lead list is too large.";
+    id doc = [NSJSONSerialization JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    NSArray *in = [doc isKindOfClass:[NSDictionary class]] ? doc[@"leads"] : nil;
+    if (![in isKindOfClass:[NSArray class]] || in.count > 200) return @"The lead list isn't valid.";
+    NSRegularExpression *idRe = [NSRegularExpression regularExpressionWithPattern:@"^[a-z0-9_]{1,40}$" options:0 error:nil];
+    NSRegularExpression *hexRe = [NSRegularExpression regularExpressionWithPattern:@"^#[0-9a-fA-F]{6}$" options:0 error:nil];
+    NSSet *kinds = [NSSet setWithArray:@[@"target", @"relay", @"carrier", @"fleet", @"other"]];
+    BOOL (^str)(id, NSUInteger) = ^BOOL(id v, NSUInteger max) { return [v isKindOfClass:[NSString class]] && [v length] <= max; };
+    BOOL (^match)(NSRegularExpression *, NSString *) = ^BOOL(NSRegularExpression *re, NSString *v) { return [re firstMatchInString:v options:0 range:NSMakeRange(0, v.length)] != nil; };
+    NSArray *(^strs)(id, NSUInteger, NSUInteger) = ^NSArray *(id v, NSUInteger n, NSUInteger max) {
+        if (![v isKindOfClass:[NSArray class]] || [v count] > n) return nil;
+        for (id x in v) if (!str(x, max)) return nil;
+        return v;
+    };
+    NSMutableArray *out = [NSMutableArray array];
+    NSMutableSet *ids = [NSMutableSet set];
+    for (NSDictionary *l in in) {
+        if (![l isKindOfClass:[NSDictionary class]]) return @"A lead entry isn't valid.";
+        NSString *lid = l[@"id"], *name = l[@"name"];
+        if (!str(lid, 40) || !match(idRe, lid) || [ids containsObject:lid]) return @"Each lead needs a unique id of lowercase letters, digits and underscores.";
+        if (!str(name, 60) || name.length == 0) return @"Every lead needs a name of up to 60 characters.";
+        [ids addObject:lid];
+        NSMutableDictionary *o = [@{@"id": lid, @"name": name} mutableCopy];
+        if (l[@"short"]) { if (!str(l[@"short"], 6)) return @"Short names are at most 6 characters."; o[@"short"] = l[@"short"]; }
+        if (l[@"kind"]) { if (![kinds containsObject:l[@"kind"]]) return @"Unknown lead type."; o[@"kind"] = l[@"kind"]; }
+        for (NSString *k in @[@"color", @"color_light"])
+            if (l[k]) { if (!str(l[k], 7) || !match(hexRe, l[k])) return @"Colours must look like #a1b2c3."; o[k] = l[k]; }
+        NSArray *tags = l[@"tags"] ? strs(l[@"tags"], 12, 60) : @[], *terms = l[@"watch_terms"] ? strs(l[@"watch_terms"], 20, 80) : @[];
+        if (!tags || !terms) return @"Up to 12 tags (60 characters each) and 20 search terms (80 characters each).";
+        if (tags.count) o[@"tags"] = tags;
+        if (terms.count) o[@"watch_terms"] = terms;
+        if (l[@"note"]) { if (!str(l[@"note"], 500)) return @"Notes are at most 500 characters."; o[@"note"] = l[@"note"]; }
+        if (l[@"added_utc"]) { if (!str(l[@"added_utc"], 25)) return @"Bad date."; o[@"added_utc"] = l[@"added_utc"]; }
+        for (NSString *k in @[@"catch_all", @"archived"])
+            if (l[k]) { if (![l[k] isKindOfClass:[NSNumber class]]) return @"Bad flag."; o[k] = [l[k] boolValue] ? @YES : @NO; }
+        [out addObject:o];
+    }
+    NSISO8601DateFormatter *iso = [NSISO8601DateFormatter new];
+    NSDictionary *clean = @{@"schema_version": @1, @"updated_utc": [iso stringFromDate:[NSDate date]], @"leads": out};
+    NSData *data = [NSJSONSerialization dataWithJSONObject:clean options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys | NSJSONWritingWithoutEscapingSlashes error:nil];
+    NSURL *dir = [self.projectRoot URLByAppendingPathComponent:@"leads" isDirectory:YES];
+    [[NSFileManager defaultManager] createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
+    NSError *err = nil;
+    if (![data writeToURL:[dir URLByAppendingPathComponent:@"leads.json"] options:NSDataWritingAtomic error:&err]) return err.localizedDescription;
+    return nil;
+}
++ (NSString *)jsString:(NSString *)s {
+    NSData *d = [NSJSONSerialization dataWithJSONObject:@[s ?: @""] options:0 error:nil];
+    NSString *a = [[NSString alloc] initWithData:d encoding:NSUTF8StringEncoding];
+    return [a substringWithRange:NSMakeRange(1, a.length - 2)];  // the string inside the one-element array, JSON-quoted
 }
 
 #pragma mark menu

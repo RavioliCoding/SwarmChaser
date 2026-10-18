@@ -3,7 +3,7 @@
 ## How SwarmChaser protects you
 
 - **No outbound requests.** The dashboard runs under a strict Content-Security-Policy with no `connect-src` to remote hosts. It reads only local files. Opening it offline, in airplane mode, changes nothing.
-- **Read-only data access.** The Mac app serves files through a private `swarm://` scheme confined to its data root. It never writes to your data.
+- **Read-only data access, with one exception.** The Mac app serves files through a private `swarm://` scheme confined to its data root. The only file it ever writes is `leads/leads.json` in *your own* data folder, and only when you save in the lead editor. Every field is checked against an allow-list (id pattern, lengths, known types, hex colours), the file is rebuilt from those checked values, and it is written atomically. It never writes to the bundled sample or anywhere else. In browser mode nothing is written: the editor gives you the text to paste.
 - **Link filtering.** Clicks on external links are checked against a host policy. Research hosts open; known agent carrier/relay/paste hosts are blocked outright; anything else prompts first. The same list is enforced in the native shell (`app/main.m`) and the page.
 - **Untrusted content is shown as text.** Archived agent-written material is rendered with `textContent` only — never as HTML, and never executed.
 
