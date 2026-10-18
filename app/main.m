@@ -3,7 +3,7 @@
 // The page is served from a private, read-only swarm:// scheme rooted at the data folder
 // (SWARMCHASER_ROOT, else the sample data bundled in the app), so no server is needed.
 // Web links go through a host policy to the default browser. Nothing is sent anywhere.
-// The one file it writes is leads/leads.json in your own data folder, when you save in the lead editor.
+// The only files it writes are leads/leads.json and leads/watch.json in your own data folder, when you save.
 //
 // Debug: SwarmChaser --snapshot out.png [--tab interp] [--size 1480x920]
 //        renders one tab to a PNG and quits.
@@ -348,6 +348,9 @@ typedef NS_ENUM(NSInteger, SCLinkPolicy) { SCLinkOpen, SCLinkAsk, SCLinkBlock };
     } else if ([cmd isEqualToString:@"saveLeads"] && [b[@"json"] isKindOfClass:[NSString class]]) {
         NSString *err = [self saveLeads:b[@"json"]];
         [self.web evaluateJavaScript:[NSString stringWithFormat:@"window.SC&&SC.leadsSaved(%@,%@)", err ? @"false" : @"true", [AppDelegate jsString:err ?: @"saved"]] completionHandler:nil];
+    } else if ([cmd isEqualToString:@"saveWatch"] && [b[@"json"] isKindOfClass:[NSString class]]) {
+        NSString *err = [self saveWatch:b[@"json"]];
+        [self.web evaluateJavaScript:[NSString stringWithFormat:@"window.SC&&SC.watchSaved(%@,%@)", err ? @"false" : @"true", [AppDelegate jsString:err ?: @"saved"]] completionHandler:nil];
     } else if ([cmd isEqualToString:@"clearBadge"]) {
         NSApp.dockTile.badgeLabel = nil;  // the page asked to clear notifications
     } else if ([cmd isEqualToString:@"store"] && [b[@"key"] isKindOfClass:[NSString class]] && [b[@"value"] isKindOfClass:[NSString class]]) {
@@ -370,7 +373,7 @@ typedef NS_ENUM(NSInteger, SCLinkPolicy) { SCLinkOpen, SCLinkAsk, SCLinkBlock };
     else self.window.appearance = nil;  // follow macOS
 }
 
-#pragma mark lead registry (the one file the app writes)
+#pragma mark data files the app writes (leads/leads.json, leads/watch.json; nothing else)
 
 // The lead editor saves leads/leads.json in your own data folder. Every field is checked against an
 // allow-list and the file is rebuilt from the checked values only; nothing else is ever written.
@@ -413,13 +416,43 @@ typedef NS_ENUM(NSInteger, SCLinkPolicy) { SCLinkOpen, SCLinkAsk, SCLinkBlock };
             if (l[k]) { if (![l[k] isKindOfClass:[NSNumber class]]) return @"Bad flag."; o[k] = [l[k] boolValue] ? @YES : @NO; }
         [out addObject:o];
     }
-    NSISO8601DateFormatter *iso = [NSISO8601DateFormatter new];
-    NSDictionary *clean = @{@"schema_version": @1, @"updated_utc": [iso stringFromDate:[NSDate date]], @"leads": out};
-    NSData *data = [NSJSONSerialization dataWithJSONObject:clean options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys | NSJSONWritingWithoutEscapingSlashes error:nil];
+    return [self writeDataFile:@"leads.json" object:@{@"schema_version": @1, @"leads": out}];
+}
+// Watch settings (leads/watch.json): run frequency, pause, and per-vector status / on-off. Same rules:
+// allow-listed values only, rebuilt from the checked values, written atomically, never into the bundled sample.
+- (NSString *)saveWatch:(NSString *)json {
+    if (!self.leadsWritable) return @"This data folder can't be changed: it's the bundled sample, or you don't have write access. Point SWARMCHASER_ROOT at a folder of your own to save settings.";
+    if (json.length > 100000) return @"The settings are too large.";
+    NSDictionary *doc = [NSJSONSerialization JSONObjectWithData:[json dataUsingEncoding:NSUTF8StringEncoding] options:0 error:nil];
+    if (![doc isKindOfClass:[NSDictionary class]]) return @"The settings aren't valid.";
+    NSNumber *cad = doc[@"cadence_hours"];
+    if (![cad isKindOfClass:[NSNumber class]] || ![@[@1, @2, @3, @4, @6, @8, @12, @24] containsObject:cad] || cad.doubleValue != (double)cad.intValue) return @"Run every 1, 2, 3, 4, 6, 8, 12 or 24 hours.";
+    id paused = doc[@"paused"] ?: @NO;
+    if (![paused isKindOfClass:[NSNumber class]]) return @"Bad pause flag.";
+    NSDictionary *in = doc[@"vectors"] ?: @{};
+    if (![in isKindOfClass:[NSDictionary class]] || in.count > 500) return @"Bad vector settings.";
+    NSRegularExpression *idRe = [NSRegularExpression regularExpressionWithPattern:@"^[A-Za-z0-9_-]{1,16}$" options:0 error:nil];
+    NSSet *states = [NSSet setWithArray:@[@"watching", @"ready", @"idea"]];
+    NSMutableDictionary *vectors = [NSMutableDictionary dictionary];
+    for (NSString *vid in in) {
+        NSDictionary *o = in[vid];
+        if (![vid isKindOfClass:[NSString class]] || ![idRe firstMatchInString:vid options:0 range:NSMakeRange(0, vid.length)] || ![o isKindOfClass:[NSDictionary class]]) return @"Bad vector id.";
+        NSMutableDictionary *c = [NSMutableDictionary dictionary];
+        if (o[@"status"]) { if (![states containsObject:o[@"status"]]) return @"A vector's status is idea, ready or watching."; c[@"status"] = o[@"status"]; }
+        if (o[@"enabled"]) { if (![o[@"enabled"] isKindOfClass:[NSNumber class]]) return @"Bad on/off flag."; c[@"enabled"] = [o[@"enabled"] boolValue] ? @YES : @NO; }
+        if (c.count) vectors[vid] = c;
+    }
+    return [self writeDataFile:@"watch.json" object:@{@"schema_version": @1, @"cadence_hours": @(cad.intValue), @"paused": [paused boolValue] ? @YES : @NO, @"vectors": vectors}];
+}
+// atomic write of one allow-listed file into <data root>/leads/, stamped with the time
+- (NSString *)writeDataFile:(NSString *)name object:(NSDictionary *)obj {
+    NSMutableDictionary *o = [obj mutableCopy];
+    o[@"updated_utc"] = [[NSISO8601DateFormatter new] stringFromDate:[NSDate date]];
+    NSData *data = [NSJSONSerialization dataWithJSONObject:o options:NSJSONWritingPrettyPrinted | NSJSONWritingSortedKeys | NSJSONWritingWithoutEscapingSlashes error:nil];
     NSURL *dir = [self.projectRoot URLByAppendingPathComponent:@"leads" isDirectory:YES];
     [[NSFileManager defaultManager] createDirectoryAtURL:dir withIntermediateDirectories:YES attributes:nil error:nil];
     NSError *err = nil;
-    if (![data writeToURL:[dir URLByAppendingPathComponent:@"leads.json"] options:NSDataWritingAtomic error:&err]) return err.localizedDescription;
+    if (![data writeToURL:[dir URLByAppendingPathComponent:name] options:NSDataWritingAtomic error:&err]) return err.localizedDescription;
     return nil;
 }
 + (NSString *)jsString:(NSString *)s {

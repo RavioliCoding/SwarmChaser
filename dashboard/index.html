@@ -494,6 +494,22 @@ html:not(.dense) .arc:not(.on) small{display:none}
 .ledit input,.ledit select,.ledit textarea{background:rgba(var(--ink),.04);border:1px solid var(--ln2);color:var(--wh);font:inherit;font-size:12px;padding:5px 8px;border-radius:0}
 .ledit textarea{resize:vertical}.ledit .acts{display:flex;gap:6px;flex-wrap:wrap}.ledit .acts button{padding:5px 10px}
 .le-msg{font-size:11px;color:var(--tx2);line-height:1.5}.le-msg.err{color:var(--re)}.le-msg textarea{width:100%;margin-top:6px;font-size:10.5px}
+/* ── archive conversations: each message is what one agent wrote, in order ── */
+.conv{padding:2px 12px 16px}
+.cm{padding:8px 0 6px;border-top:1px solid var(--ln)}.cm:first-child{border-top:0}.cm.same{border-top:0;padding-top:2px}
+.cmh{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;font-size:11px}.cm.same .cmh .who{visibility:hidden}
+.cmh .t{color:var(--tx3);white-space:nowrap}.cmh .who{font-weight:800}.cmh .v{color:var(--tx2)}.cmh .s{color:var(--tx2);font-style:italic}.cmh .rm{color:var(--tx3)}
+.cmh .hu{color:var(--am);border:1px solid currentColor;padding:0 4px;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase}
+.cmt{white-space:pre-wrap;word-break:break-word;font:500 12px/1.55 var(--fm);color:var(--tx);margin:4px 0 0;padding:6px 9px;background:rgba(var(--ink),.035);border-left:2px solid var(--cmc,var(--ln2))}
+.cmore{margin:12px 0 0}
+/* ── vector controls + run frequency ── */
+.vx-ctl{display:flex;align-items:center;gap:6px;margin-top:9px;flex-wrap:wrap}
+.vx-seg{display:flex;gap:1px}.vx-seg button,.vx-tog{background:rgba(var(--ink),.04);color:var(--tx2);font-size:9.5px;padding:2px 7px;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.vx-seg button:hover,.vx-tog:hover{color:var(--wh)}.vx-seg button.on{background:var(--vc,var(--cy));color:var(--invtx)}.vc.lowsig .vx-seg button.on{background:rgba(var(--ink),.14)}
+.vx-tog{border:1px solid var(--ln2);margin-left:auto}.vx-tog.on{color:var(--te);border-color:var(--te)}.vx-chg{font-size:9.5px;color:var(--am)}
+.vxst{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em}
+.vxst button{border:1px solid var(--ln2);padding:2px 8px;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.vxst button.on{color:var(--wh);border-color:var(--ln3);background:rgba(var(--ink),.06)}
+.vxst em{font-style:normal;margin-left:auto;text-transform:none;letter-spacing:0}
 /* ── plain-words explanations (View → explanations, or E) ── */
 .eli{font-size:11px;line-height:1.45;color:var(--tx2);padding:0 10px 7px;margin-top:-1px;flex-shrink:0;white-space:normal}
 .eli::before{content:'↳ ';color:var(--tx3)}
@@ -527,6 +543,8 @@ html.no-eli .eli,html.no-eli .eli5{display:none}
       <div class="vmenu" id="viewMenu">
         <div class="vrow"><span>theme</span><div class="seg" data-set="theme"><button data-v="system" title="Follow macOS">system</button><button data-v="light">light</button><button data-v="dark">dark</button></div></div>
         <div class="vrow"><span>readability</span><div class="seg" data-set="read"><button data-v="eli5" title="Plain words, essentials only">ELI5</button><button data-v="normal" title="Standard labels">Normal</button><button data-v="complex" title="Every panel and readout">Complex</button></div></div>
+        <div class="vrow"><span>watch every</span><div class="seg" data-set="cadence"><button data-v="1">1h</button><button data-v="2">2h</button><button data-v="4">4h</button><button data-v="6">6h</button><button data-v="12">12h</button><button data-v="24">24h</button><button data-v="pause" title="Pause the watch; press again to resume">pause</button></div></div>
+        <p class="vnote" id="cadNote"></p>
         <div class="vrow"><span>clock</span><button class="tool" id="hBtn" title="Switch between 24-hour and AM/PM time (T)">24h</button></div>
         <div class="vrow"><span>time zone</span><button class="tool" id="zBtn" title="Show times in UTC or your local time zone">utc</button></div>
         <div class="vrow"><span>auto-refresh · 30 s</span><button class="tool" id="autoBtn" title="Re-read the watch log every 30 s">auto <span class="dot"></span></button></div>
@@ -704,12 +722,12 @@ html.no-eli .eli,html.no-eli .eli5{display:none}
       <div class="pnl"><div class="ph"><span>all swarms on one timeline</span><b>each row scaled to its own peak</b></div><div class="cvbox" style="height:142px;flex:none"><canvas id="cvArAll"></canvas></div></div>
       <div class="pnl"><div class="ph"><span id="arChartTitle">activity</span><span class="arsw" id="arSwitch"></span><b id="arChartTag">—</b></div><div class="cvbox" style="height:210px;flex:none"><canvas id="cvArAct"></canvas></div><div class="arleg" id="arLeg"></div></div>
       <div class="arrd">
-        <div class="pnl"><div class="ph"><span>transcript</span><b id="arListTag">—</b></div>
+        <div class="pnl"><div class="ph"><span>transcript</span><span class="arsw" id="arMode"></span><b id="arListTag">—</b></div>
           <div class="arfilt"><input id="arSearch" type="search" placeholder="search the text…" autocomplete="off" spellcheck="false"><select id="arFilter"></select><button id="arClear">clear</button></div>
           <div class="scroll f1" id="arRows"></div>
           <div class="pfoot"><span id="arPos">—</span><button id="arMore" class="arbtn">load more</button></div></div>
         <div class="pnl"><div class="ph"><span id="arMsgTitle">message</span><b id="arMsgTag">plain text · never run</b></div>
-          <div class="scroll f1"><dl id="arMeta" class="pb kv"></dl><pre id="arText" class="artext">Pick a row to read it.</pre></div></div>
+          <div class="scroll f1"><dl id="arMeta" class="pb kv"></dl><pre id="arText" class="artext">Pick a row to read it.</pre><div id="arConv" class="conv"></div></div></div>
       </div>
     </div>
   </div>
@@ -877,10 +895,10 @@ function derive(){
     flagRuns:R.filter(r=>flagsOf(r).length).length,reuseCount:R.filter(r=>r.flags.cross_run_reuse===true).length,
     accessOk:R.filter(r=>r.access_ok!==false).length,wayback:R.reduce((a,r)=>a+(+r.wayback.captures_since_last_run||0),0),
     leadsMoved:LEADS.filter(id=>leadTot[id].rows>0).length,lastMove:R.find(r=>moving(r).length)||null,
-    next:L?D(L.run_utc).getTime()+4*3.6e6:0};
+    next:L?D(L.run_utc).getTime()+wcfg().cadence_hours*3.6e6:0};
 }
 const band=s=>s>=75?['critical',3,C.re]:s>=50?['high',2,C.or]:s>=20?['elevated',1,C.am]:['quiet',0,C.te];
-const nextTxt=()=>{if(!S||!S.next)return'—';const d=S.next-Date.now();return d>0?dur(d):'overdue'};
+const nextTxt=()=>{if(wcfg().paused)return'paused';if(!S||!S.next)return'—';const d=S.next-Date.now();return d>0?dur(d):'overdue'};
 
 /* ═══════════════ chrome ═══════════════ */
 function renderChrome(){
@@ -1313,6 +1331,29 @@ $('#addLeadBtn').addEventListener('click',()=>openLeadEditor(null));
 function leadsSaved(ok,msg){const m=$('#leMsg');if(!ok){m.className='le-msg err';m.textContent=msg||'Could not save.';return}
   closeLeadEditor();toast(LE.saved?'lead saved':'lead retired',LE.saved?`${LE.saved} is in your lead list. The watch searches it once its instructions read leads/leads.json.`:'It no longer shows on the dashboard.');refresh(true)}
 
+/* ── watch settings: run frequency, pause, and per-vector status / on-off, saved to leads/watch.json ── */
+// any collector can read this file; the bundled sample and browser mode keep changes in this app only
+const CADENCES=[1,2,3,4,6,8,12,24],WDEF={cadence_hours:4,paused:false,vectors:{}};
+let WCFG_FILE=null,WCFG_TXT=null;
+async function loadWatchCfg(){try{const r=await dataFetch('leads/watch.json');if(!r.ok)throw 0;const txt=await r.text();if(txt===WCFG_TXT)return false;WCFG_FILE=JSON.parse(txt);WCFG_TXT=txt;return true}catch{if(WCFG_FILE&&WCFG_TXT){WCFG_FILE=null;WCFG_TXT=null;return true}return false}}
+function wcfg(){let c=null;if(!CAN_WRITE()){try{c=JSON.parse(store.get('sc.watchcfg')||'null')}catch{}}c=c||WCFG_FILE||WDEF;
+  return {cadence_hours:CADENCES.includes(+c.cadence_hours)?+c.cadence_hours:4,paused:c.paused===true,vectors:c.vectors&&typeof c.vectors==='object'?c.vectors:{}}}
+function saveWatchCfg(cfg,kind){const doc={schema_version:1,updated_utc:new Date().toISOString().replace(/\.\d+Z$/,'Z'),cadence_hours:cfg.cadence_hours,paused:cfg.paused,vectors:cfg.vectors};
+  if(CAN_WRITE()){WCFG_FILE=doc;native({cmd:'saveWatch',json:JSON.stringify(doc)})}else store.set('sc.watchcfg',JSON.stringify(doc));
+  if(kind==='cadence'){if(S)renderAll(false)}else{renderVectors();briefs()}syncView()}
+function watchSaved(ok,msg){if(!ok){toast('not saved',msg||'Could not save the watch settings.');WCFG_TXT=null;refresh(true)}}
+function setCadence(v){const cfg=JSON.parse(JSON.stringify(wcfg()));if(v==='pause')cfg.paused=!cfg.paused;else{cfg.cadence_hours=+v;cfg.paused=false}saveWatchCfg(cfg,'cadence')}
+// a vector as shown: your status override, or "off" when you switched it off
+const vxEff=v=>{const o=wcfg().vectors[v.id]||{},set=['watching','ready','idea'].includes(o.status)?o.status:v.status;return {...v,base:v.status,set,status:o.enabled===false?'off':set}};
+let VX_ST=null;
+const vxStatusBar=V=>{const c=k=>V.filter(v=>v.status===k).length;return `<div class="vxst"><span>show</span>${[['','all',V.length],['watching','watching',c('watching')],['ready','ready',c('ready')],['idea','idea',c('idea')],['off','off',c('off')]].map(([k,l,n])=>`<button data-st="${k}" class="${(VX_ST||'')===k?'on':''}">${l} ${n}</button>`).join('')}<em>${CAN_WRITE()?'changes save to leads/watch.json; the watch reads it each run':'changes stay in this app (sample data or browser)'}</em></div>`};
+const vxControls=v=>`<div class="vx-ctl" data-v="${esc(v.id)}"><span class="vx-seg">${['idea','ready','watching'].map(k=>`<button data-st="${k}" class="${v.set===k?'on':''}" title="${k==='watching'?'Watch it: its search terms join the rotation':'Mark it '+k}">${k}</button>`).join('')}</span>${v.set!==v.base?`<span class="vx-chg">was ${esc(v.base)}</span>`:''}<button data-tog="1" class="vx-tog ${v.status==='off'?'':'on'}" title="${v.status==='off'?'Turn it back on':'Turn it off: the watch skips its search terms'}">${v.status==='off'?'off':'on'}</button></div>`;
+$('#vxGrid').addEventListener('click',e=>{const st=e.target.closest('.vxst button');if(st){VX_ST=st.dataset.st||null;renderVectors();return}
+  const ctl=e.target.closest('.vx-ctl'),b=e.target.closest('button');if(!ctl||!b)return;const id=ctl.dataset.v,cfg=JSON.parse(JSON.stringify(wcfg())),o=cfg.vectors[id]||{},base=(VECTORS.vectors||[]).find(v=>v.id===id);
+  if(b.dataset.st)o.status=b.dataset.st;else if(b.dataset.tog)o.enabled=o.enabled===false;
+  if(base&&o.status===base.status)delete o.status;if(o.enabled!==false)delete o.enabled;
+  if(Object.keys(o).length)cfg.vectors[id]=o;else delete cfg.vectors[id];saveWatchCfg(cfg,'vector')});
+
 /* ═══════════════ 02 timeline ═══════════════ */
 const T={built:false,c:null,w:0,h:0,n:0,P:null,list:[],groups:[],sp:[],nodes:[],spin:-.5,drag:null,hover:-1,sel:-1,def:0,mx:-1e4,my:-1e4,inside:false,NP:16,uc:()=>0,hw:0};
 const TR=1,Tr=.34,TD=7;
@@ -1655,17 +1696,22 @@ $('#thFilters').addEventListener('click',e=>{const b=e.target.closest('button');
 let VECTORS=VECTORS_DEFAULT,VECTORS_TXT=null,VX_FAM=null,WATCHLIST=null,WATCHLIST_TXT=null;
 async function loadWatchlist(){try{const r=await dataFetch('leads/watchlist.json');if(!r.ok)throw 0;const txt=await r.text();if(txt===WATCHLIST_TXT)return false;const j=JSON.parse(txt);if(!Array.isArray(j.rotation))throw 0;WATCHLIST=j;WATCHLIST_TXT=txt;return true}catch{if(WATCHLIST){WATCHLIST=null;WATCHLIST_TXT=null;return true}return false}}
 async function loadVectors(){try{const r=await dataFetch('reference/detection_vectors.json');if(!r.ok)throw 0;const txt=await r.text();if(txt===VECTORS_TXT)return false;VECTORS=JSON.parse(txt);VECTORS_TXT=txt;return true}catch{return false}}
-const VSTAT={watching:[C.te,'watching'],ready:[C.am,'ready'],idea:[C.cy,'idea']};
+const VSTAT={watching:[C.te,'watching'],ready:[C.am,'ready'],idea:[C.cy,'idea'],off:[C.tx3,'off']};
 // core terms the scheduled watch queries every run (its SKILL.md), plus the rotation from detection_vectors.json
 const CORE_TERMS=['newspapers.com','cors.lol','pastehtml.dev','r.jina.ai','amap','gaode','uqscan','uqchain','httpbin.org/base64','httpbun.com','webhook.site','livecodes.io','allorigins'];
 const wlTerms=a=>(a||[]).map(x=>typeof x==='string'?x:x.term);
-const rotationList=()=>WATCHLIST?WATCHLIST.rotation:(VECTORS.rotation||[]);
-const watchTerms=()=>(WATCHLIST?[...wlTerms(WATCHLIST.hot),...wlTerms(WATCHLIST.warm),...wlTerms(WATCHLIST.promoted),...WATCHLIST.rotation.flat()]:[...CORE_TERMS,...(VECTORS.rotation||[]).flat()]).map(t=>String(t).toLowerCase());
-// same formula as the watch task: (UTC day-of-year × 6 + UTC hour ÷ 4) mod groups
-const rotGroup=(t=new Date())=>{const n=rotationList().length;if(!n)return -1;const y0=Date.UTC(t.getUTCFullYear(),0,0),yday=Math.floor((t.getTime()-y0)/864e5);return (yday*6+Math.floor(t.getUTCHours()/4))%n};
-function newScanTerms(){const w=watchTerms();return [...new Set((VECTORS.vectors||[]).filter(v=>v.status==='ready'||v.status==='watching').flatMap(v=>v.scan_terms||[]))].filter(t=>!w.includes(String(t).toLowerCase()))}
+// the watch's rotation: the watchlist's groups minus terms of vectors you switched off, then groups of three from vectors you set to watching
+function rotationList(){const base=WATCHLIST?WATCHLIST.rotation:(VECTORS.rotation||[]),cfg=wcfg().vectors,V=VECTORS.vectors||[],lc=t=>String(t).toLowerCase();
+  const off=new Set(V.filter(v=>cfg[v.id]&&cfg[v.id].enabled===false).flatMap(v=>v.scan_terms||[]).map(lc));
+  const have=new Set([...base.flat(),...(WATCHLIST?[...wlTerms(WATCHLIST.hot),...wlTerms(WATCHLIST.warm)]:CORE_TERMS)].map(lc));
+  const extra=[...new Set(V.filter(v=>cfg[v.id]&&cfg[v.id].status==='watching'&&cfg[v.id].enabled!==false).flatMap(v=>v.scan_terms||[]))].filter(t=>!have.has(lc(t))&&!off.has(lc(t)));
+  const groups=base.map(g=>g.filter(t=>!off.has(lc(t)))).filter(g=>g.length);for(let i=0;i<extra.length;i+=3)groups.push(extra.slice(i,i+3));return groups}
+const watchTerms=()=>(WATCHLIST?[...wlTerms(WATCHLIST.hot),...wlTerms(WATCHLIST.warm),...wlTerms(WATCHLIST.promoted),...rotationList().flat()]:[...CORE_TERMS,...rotationList().flat()]).map(t=>String(t).toLowerCase());
+// same formula as the watch task, for a run every c hours: (UTC day-of-year × 24/c + UTC hour ÷ c) mod groups (c = 4 gives × 6 and ÷ 4)
+const rotGroup=(t=new Date())=>{const n=rotationList().length;if(!n)return -1;const c=wcfg().cadence_hours,y0=Date.UTC(t.getUTCFullYear(),0,0),yday=Math.floor((t.getTime()-y0)/864e5);return (yday*(24/c)+Math.floor(t.getUTCHours()/c))%n};
+function newScanTerms(){const w=watchTerms();return [...new Set((VECTORS.vectors||[]).map(vxEff).filter(v=>v.status==='ready'||v.status==='watching').flatMap(v=>v.scan_terms||[]))].filter(t=>!w.includes(String(t).toLowerCase()))}
 function renderVectors(){
-  const V=VECTORS.vectors||[],F=VECTORS.families||[],cnt=k=>V.filter(v=>v.status===k).length,PR={high:0,medium:1,low:2};
+  const V=(VECTORS.vectors||[]).map(vxEff),F=VECTORS.families||[],cnt=k=>V.filter(v=>v.status===k).length,PR={high:0,medium:1,low:2};
   $('#vxTitle').textContent=VECTORS.title||'vectors';$('#vxIntro').textContent=VECTORS.intro||'';$('#vxCount').textContent=V.length+' vectors';
   $('#vxBar').innerHTML=Object.entries(VSTAT).map(([k,[col]])=>cnt(k)?`<i style="flex:${cnt(k)};background:${col}" title="${k}: ${cnt(k)}"></i>`:'').join('');
   $('#vxLeg').innerHTML=Object.entries(VSTAT).filter(([k])=>cnt(k)).map(([k,[col,lab]])=>`<span><i style="background:${col}"></i>${lab} ${cnt(k)}</span>`).join('');
@@ -1673,9 +1719,9 @@ function renderVectors(){
     return `<div class="covrow ${VX_FAM===f.id?'on':''}" data-f="${esc(f.id)}"><span>${esc(f.name)}</span><div class="mb">${Object.entries(VSTAT).map(([k,[col]])=>{const n=fv.filter(v=>v.status===k).length;return n?`<i style="flex:${n};background:${col}"></i>`:''}).join('')}</div><b>${fv.length}</b></div>`}).join('');
   $('#vxPrin').innerHTML=(VECTORS.principles||[]).map(p=>`<div><b>${esc(p.k)}</b>${esc(p.t)}</div>`).join('');
   $('#vxCopy').textContent=`copy new scanner terms (${newScanTerms().length})`;
-  const RT=rotationList(),g=rotGroup(),nx=RT.length?(g+1)%RT.length:-1,nextAt=new Date(Math.floor(Date.now()/(4*3.6e6))*4*3.6e6+4*3.6e6).toISOString();
-  $('#vxRotTag').textContent=RT.length?`${RT.length} groups · ${(RT[0]||[]).length}/run`:'—';
-  $('#vxRot').innerHTML=RT.length?`<dl class="kv">${WATCHLIST?`<dt>hot</dt><dd>${wlTerms(WATCHLIST.hot).length} every run</dd><dt>warm</dt><dd>${wlTerms(WATCHLIST.warm).length}, half per run</dd><dt>promoted</dt><dd>${wlTerms(WATCHLIST.promoted).length?esc(wlTerms(WATCHLIST.promoted).join(', ')):'none'}</dd>`:`<dt>core terms</dt><dd>${CORE_TERMS.length} every run</dd>`}<dt>now · group ${g}</dt><dd class="c-am">${esc(RT[g].join(', '))}</dd><dt>next · group ${nx}</dt><dd>${esc(RT[nx].join(', '))}</dd><dt>next window</dt><dd>${stamp(nextAt)}${zs()}</dd><dt>full cycle</dt><dd>${RT.length*4}h</dd><dt>deep pass</dt><dd>daily · 00–04 utc</dd></dl>
+  const RT=rotationList(),g=rotGroup(),nx=RT.length?(g+1)%RT.length:-1,nextAt=new Date(Math.floor(Date.now()/(wcfg().cadence_hours*3.6e6))*wcfg().cadence_hours*3.6e6+wcfg().cadence_hours*3.6e6).toISOString();
+  $('#vxRotTag').textContent=RT.length?`${RT.length} groups · up to ${Math.max(...RT.map(g=>g.length))}/run`:'—';
+  $('#vxRot').innerHTML=RT.length?`<dl class="kv">${WATCHLIST?`<dt>hot</dt><dd>${wlTerms(WATCHLIST.hot).length} every run</dd><dt>warm</dt><dd>${wlTerms(WATCHLIST.warm).length}, half per run</dd><dt>promoted</dt><dd>${wlTerms(WATCHLIST.promoted).length?esc(wlTerms(WATCHLIST.promoted).join(', ')):'none'}</dd>`:`<dt>core terms</dt><dd>${CORE_TERMS.length} every run</dd>`}<dt>now · group ${g}</dt><dd class="c-am">${esc(RT[g].join(', '))}</dd><dt>next · group ${nx}</dt><dd>${esc(RT[nx].join(', '))}</dd><dt>next window</dt><dd>${stamp(nextAt)}${zs()}</dd><dt>full cycle</dt><dd>${RT.length*wcfg().cadence_hours}h${wcfg().paused?' · paused':''}</dd><dt>deep pass</dt><dd>daily · 00–04 utc</dd></dl>
     <div class="sig" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:8px">${(VECTORS.deep_pass||[]).map(x=>`<span class="tag c-cy" style="margin:0;white-space:normal;line-height:1.5;padding:1px 6px">◆ ${esc(x)}</span>`).join('')}</div>`:'<div class="empty">no rotation defined</div>';
   const AM=VECTORS.agent_model||[],live=new Set(watchTerms()),IN=VECTORS.infrastructure||[],RM=VECTORS.roadmap||[];
   const AN=VECTORS.angles||[];
@@ -1689,12 +1735,12 @@ function renderVectors(){
     ${IN.length?`<div class="vfam"><span>infrastructure &amp; plan</span><small>${IN.filter(i=>i.status==='live').length}/${IN.length} live</small></div><div class="vdesc">${esc(VECTORS.infrastructure_intro||'')}</div>
     <div class="infra">${IN.map(i=>{const col=i.status==='live'?C.te:C.am;return `<div class="ic" style="border-left-color:${col}"><div class="ic-h"><span class="iid">${esc(i.id)}</span><span class="in">${esc(i.name)}</span><span class="is" style="color:${col}">${esc(i.status)}</span></div><p>${esc(i.what)}</p><p class="y">${esc(i.why)}</p></div>`}).join('')}</div>
     <div class="road">${RM.map(r=>{const col=r.when==='live'?C.te:r.when==='now'?C.am:r.when==='next'?C.cy:C.tx2;return `<div style="border-top:2px solid ${col}"><b style="color:${col}">${esc(r.when)}</b><ul>${(r.items||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ul></div>`}).join('')}</div>`:''}`;
-  $('#vxGrid').innerHTML=F.filter(f=>!VX_FAM||f.id===VX_FAM).map(f=>{const fv=V.filter(v=>v.family===f.id).sort((a,b)=>(PR[a.priority]??3)-(PR[b.priority]??3));if(!fv.length)return'';
+  $('#vxGrid').innerHTML=vxStatusBar(V)+F.filter(f=>!VX_FAM||f.id===VX_FAM).map(f=>{const fv=V.filter(v=>v.family===f.id&&(!VX_ST||v.status===VX_ST)).sort((a,b)=>(PR[a.priority]??3)-(PR[b.priority]??3));if(!fv.length)return'';
     return `<div class="vfam"><span>${esc(f.name)}</span><small>${fv.length} vector${fv.length>1?'s':''}</small></div><div class="vdesc">${esc(f.desc||'')}</div><div class="vcards">${fv.map(v=>{const [col,lab]=VSTAT[v.status]||[C.tx3,v.status];
-      return `<div class="vc" id="vc-${esc(v.id)}" style="--vc:${col}"><div class="vc-h"><span class="vid">${esc(v.id)}</span><span class="vn">${esc(v.name)}</span><span class="vp">${esc(v.priority||'')}</span><span class="vs" style="color:${col}">${esc(lab)}</span></div>
+      return `<div class="vc${v.status==='off'?' lowsig':''}" id="vc-${esc(v.id)}" style="--vc:${col}"><div class="vc-h"><span class="vid">${esc(v.id)}</span><span class="vn">${esc(v.name)}</span><span class="vp">${esc(v.priority||'')}</span><span class="vs" style="color:${col}">${esc(lab)}</span></div>
         <dl><dt>why</dt><dd>${esc(v.why)}</dd><dt>trace</dt><dd>${esc(v.trace)}</dd><dt>check</dt><dd>${esc(v.check)}</dd></dl>
         ${(v.signals||[]).length||(v.scan_terms||[]).length?`<div class="sig">${(v.signals||[]).map(x=>`<span>${esc(x)}</span>`).join('')}${(v.scan_terms||[]).map(x=>`<span class="stm" title="scanner search term">⌕ ${esc(x)}</span>`).join('')}</div>`:''}
-        ${v.note?`<div class="vnote">! ${esc(v.note)}</div>`:''}</div>`}).join('')}</div>`}).join('');
+        ${v.note?`<div class="vnote">! ${esc(v.note)}</div>`:''}${vxControls(v)}</div>`}).join('')}</div>`}).join('');
 }
 $('#vxModel').addEventListener('click',e=>{const a=e.target.closest('a[data-v]');if(!a)return;const el=document.getElementById('vc-'+a.dataset.v);if(!el)return;
   el.scrollIntoView({behavior:'smooth',block:'center'});el.classList.add('hl');setTimeout(()=>el.classList.remove('hl'),1600)});
@@ -1704,7 +1750,7 @@ $('#vxCopy').addEventListener('click',()=>{const t=newScanTerms().join(', '),b=$
 
 /* ═══════════════ 09 archives ═══════════════ */
 // Agent-written and attacker-made text: rendered with textContent only, never as HTML, never linkified.
-const AR={index:null,metas:{},cur:null,chart:'activity',rows:[],pos:{c:0,r:0},done:false,gen:0,pending:false,q:'',filter:'',day:null,sel:null,busy:false,hover:-1,cache:{},err:null};
+const AR={index:null,metas:{},cur:null,chart:'activity',rows:[],pos:{c:0,r:0},done:false,gen:0,pending:false,q:'',filter:'',day:null,sel:null,busy:false,hover:-1,cache:{},err:null,mode:'records',convIdx:{},convList:[],convShown:200,convSel:-1,convN:200};
 const AR_COL={legit:C.te,replace:C.am,scorer:C.or,hf:C.re,cross:C.cy,h:C.cy,s:C.vi,significant:C.re,suggestive:C.am,deletions:C.re,probes:C.am,reverts:C.cy,dse:C.cy,probier:C.vi,'other wikis':C.te};
 const AR_SER_COL=[C.cy,C.am,C.te,C.vi,C.pk,C.wh];
 const arColor=(s,i)=>AR_COL[s.id]||AR_SER_COL[i%AR_SER_COL.length];
@@ -1734,16 +1780,18 @@ async function arSelect(id,reset=true){
   AR.chart='activity';renderArchives();
   const src=m.source||{};
   $('#arSource').innerHTML=`<dl class="kv"><dt>source</dt><dd title="${esc(src.name||'')}">${esc(src.name||'—')}</dd><dt>retrieved</dt><dd>${esc(src.retrieved||'—')}</dd><dt>thread</dt><dd>${esc(m.thread||'—')}</dd></dl>
-    <p style="font-size:11px;color:var(--tx2);line-height:1.5;margin-top:8px">${esc(src.note||'')}</p>${src.url?`<p style="margin-top:8px;font-size:11px"><a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">read the original publication ↗</a></p>`:''}`;
+    <p style="font-size:11px;color:var(--tx2);line-height:1.5;margin-top:8px">${esc(src.note||'')}</p>${src.url?`<p style="margin-top:8px;font-size:11px"><a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">read the original publication ↗</a></p>`:''}${m.conversations?`<p style="font-size:11px;color:var(--tx2);line-height:1.5;margin-top:8px">${esc(m.conversations.note||'')}</p>`:''}`;
   $('#arFilter').innerHTML=`<option value="">any ${esc((m.filter&&m.filter.name)||'rows')}</option>`+((m.filter&&m.filter.options)||[]).map(([v,n])=>`<option value="${esc(v)}">${esc(v||'(blank)')} · ${Number(n).toLocaleString()}</option>`).join('');
   $('#arFilter').style.display=m.filter?'':'none';
   $('#arSwitch').innerHTML=m.activity2?`<button data-c="activity" class="on">${esc(m.id==='hf'?'workstreams':'activity')}</button><button data-c="activity2">${esc(m.id==='hf'?'agents running':'more')}</button>`:'';
+  AR.mode=m.conversations?'conv':'records';$('#arMode').innerHTML=m.conversations?`<button data-m="conv">${m.conversations.kind==='wiki'?'conversations':'exchanges'}</button><button data-m="records">records</button>`:'';
   drawArAll();drawArAct();arReset();
 }
-function arReset(){AR.gen++;AR.rows=[];AR.pos={c:0,r:0};AR.done=false;AR.sel=null;$('#arRows').innerHTML='';$('#arText').textContent='Pick a row to read it.';$('#arMeta').innerHTML='';arMoreRows()}
+function arReset(){AR.gen++;AR.rows=[];AR.pos={c:0,r:0};AR.done=false;AR.sel=null;AR.convSel=-1;AR.convShown=200;AR.convList=[];$('#arRows').innerHTML='';$('#arText').textContent='Pick a row to read it.';$('#arMeta').innerHTML='';$('#arConv').innerHTML=AR.mode==='conv'?'<p class="empty">Pick a conversation to read it as a thread: who wrote what, in order.</p>':'';arPanelMode();if(AR.mode==='conv'){arConvList();return}arMoreRows()}
 function arMatch(m,row){if(AR.filter&&String(row[m.filter.field])!==AR.filter)return false;if(AR.day&&!(row[0]||'').startsWith(AR.day))return false;
   if(AR.q){const q=AR.q;return (row[4]||'').toLowerCase().includes(q)||(row[1]||'').toLowerCase().includes(q)||(row[2]||'').toLowerCase().includes(q)}return true}
 async function arMoreRows(){
+  if(AR.mode==='conv'){if(AR.convShown<AR.convList.length){AR.convShown+=200;arConvRender()}return}
   if(AR.busy){AR.pending=true;return}if(AR.done)return;
   AR.busy=true;const id=AR.cur,gen=AR.gen,m=AR.metas[id],want=AR.rows.length+200;$('#arMore').textContent='loading…';let stale=false;
   try{while(AR.rows.length<want&&AR.pos.c<m.chunks.length){const ch=m.chunks[AR.pos.c];
@@ -1823,7 +1871,7 @@ function drawArAct(){
 }
 $('#arList').addEventListener('click',e=>{const d=e.target.closest('.arc');if(d&&d.dataset.id!==AR.cur)arSelect(d.dataset.id)});
 $('#arSwitch').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(b){AR.chart=b.dataset.c;AR.hover=-1;drawArAct()}});
-$('#arRows').addEventListener('click',e=>{const d=e.target.closest('.arr');if(d)arShow(+d.dataset.i)});
+$('#arRows').addEventListener('click',e=>{const d=e.target.closest('.arr');if(d)(AR.mode==='conv'?arConvOpen:arShow)(+d.dataset.i)});
 $('#arMore').addEventListener('click',()=>arMoreRows());
 $('#arRows').addEventListener('scroll',e=>{const el=e.currentTarget;if(el.scrollTop+el.clientHeight>el.scrollHeight-200)arMoreRows()});
 let arQT=null;$('#arSearch').addEventListener('input',e=>{clearTimeout(arQT);arQT=setTimeout(()=>{AR.q=e.target.value.trim().toLowerCase();arReset()},350)});
@@ -1835,6 +1883,40 @@ $('#arClear').addEventListener('click',()=>{AR.q='';AR.filter='';AR.day=null;$('
   cv.addEventListener('click',e=>{const m=AR.metas[AR.cur],a=m&&(m[AR.chart]||m.activity),i=idx(e);if(!a||i<0||i>=a.labels.length)return;
     if(a.unit!=='day'||m.untimed){toast('no per-day transcript',m.untimed?'These trace records carry no timestamps, so they can\'t be filtered by time.':'Hourly view: use search or the filter instead.');return}
     AR.day=AR.day===a.labels[i]?null:a.labels[i];drawArAct();arReset()});}
+
+/* ── conversations: a wiki page read as a thread (who wrote what, in order), or a request with what came back ── */
+async function arConvIndex(id){const m=AR.metas[id];if(!m||!m.conversations)return [];if(AR.convIdx[id])return AR.convIdx[id];
+  const r=await fetch(`../archives/app/${encodeURIComponent(id)}/${encodeURIComponent(m.conversations.index)}`);if(!r.ok)throw new Error('conversation index');
+  return AR.convIdx[id]=JSON.parse(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).text())}
+const agentCol=a=>{let h=0;for(const ch of String(a))h=(h*31+ch.charCodeAt(0))|0;return [C.am,C.cy,C.te,C.vi,C.pk,C.or,C.ye][Math.abs(h)%7]};
+function arConvMatches(c){const q=AR.q;if(q&&!(c.page.toLowerCase().includes(q)||c.a.some(a=>a.toLowerCase().includes(q))))return false;
+  if(AR.filter&&!c.a.includes(AR.filter))return false;if(AR.day&&c.t0&&c.t1&&(AR.day<c.t0.slice(0,10)||AR.day>c.t1.slice(0,10)))return false;return true}
+function arPanelMode(){const m=AR.metas[AR.cur]||{},conv=AR.mode==='conv';$('#arText').style.display=conv?'none':'';$('#arConv').style.display=conv?'':'none';
+  $('#arSearch').placeholder=conv?'search pages and agent names…':'search the text…';$$('#arMode button').forEach(b=>b.classList.toggle('on',b.dataset.m===AR.mode));
+  $('#arFilter').style.display=m.filter&&!(conv&&m.conversations&&m.conversations.kind!=='wiki')?'':'none';if(!conv)$('#arMsgTitle').textContent='message'}
+async function arConvList(){const id=AR.cur,gen=AR.gen;$('#arPos').textContent='loading conversations…';let idx;
+  try{idx=await arConvIndex(id)}catch(e){$('#arPos').textContent='could not read the conversations';console.error(e);return}if(gen!==AR.gen)return;
+  AR.convList=idx.filter(arConvMatches);arConvRender()}
+function arConvRender(){const L=AR.convList,cv=AR.metas[AR.cur].conversations,wiki=cv.kind==='wiki';
+  $('#arListTag').textContent=`${L.length.toLocaleString()} ${wiki?'conversations':'exchanges'}${AR.q||AR.filter||AR.day?' matching':''}`;
+  $('#arRows').innerHTML=L.slice(0,AR.convShown).map((c,i)=>`<div class="arr ${i===AR.convSel?'on':''}" data-i="${i}"><span class="t">${c.t0?mdd(c.t0)+(c.t1&&c.t1.slice(0,10)!==c.t0.slice(0,10)?' → '+mdd(c.t1):''):'untimed'}</span><span class="w">${wiki?`<b>${c.agents}</b> agents · `:''}${c.n.toLocaleString()} ${wiki?'messages':'records'}${c.replies?` · ${c.replies.toLocaleString()} repl${c.replies>1?'ies':'y'}`:''}</span><span class="x">${esc(c.page)}</span></div>`).join('')||'<div class="empty">nothing matches</div>';
+  $('#arMore').style.display=AR.convShown<L.length?'':'none';$('#arMore').textContent='load more';
+  $('#arPos').textContent=`${Math.min(AR.convShown,L.length).toLocaleString()} of ${L.length.toLocaleString()} · ${cv.messages.toLocaleString()} messages in all`}
+async function arConvOpen(i){const c=AR.convList[i];if(!c)return;AR.convSel=i;$$('#arRows .arr').forEach(e=>e.classList.toggle('on',+e.dataset.i===i));
+  const id=AR.cur,box=$('#arConv'),wiki=AR.metas[id].conversations.kind==='wiki';box.textContent='loading…';let chunk;
+  try{chunk=await arChunk(id,c.file)}catch(e){box.textContent='could not read this conversation';return}if(AR.cur!==id||AR.convSel!==i)return;
+  $('#arMsgTitle').textContent=wiki?`${c.wiki}/${c.page}`:'request → what came back';
+  $('#arMeta').innerHTML=[[wiki?'page':'request',c.page],[wiki?'agents':'replies',wiki?`${c.agents}: ${c.a.slice(0,6).join(', ')}${c.a.length>6?' …':''}`:c.replies],['messages',c.n.toLocaleString()],['span',c.t0?`${stamp(c.t0)} → ${stamp(c.t1)}${zs()}`:'untimed']].map(([k,v])=>`<dt>${esc(k)}</dt><dd title="${esc(v)}">${esc(v)}</dd>`).join('');
+  AR.convN=200;arConvMsgs(box,chunk[c.k]||[],wiki);box.parentElement.scrollTop=0}
+// agent-written text: built with textContent only, never parsed as HTML, never linked
+function arConvMsgs(box,msgs,wiki){box.innerHTML='';const n=Math.min(msgs.length,AR.convN);let prev=null;
+  for(let k=0;k<n;k++){const [t,who,verb,text,removed,summ,,human]=msgs[k],el=document.createElement('div'),h=document.createElement('div');el.className='cm'+(prev===who?' same':'');h.className='cmh';
+    const col=wiki?agentCol(who):who==='agent'?C.am:who==='service'?C.cy:C.tx2,add=(cls,txt,tag)=>{const s=document.createElement(tag||'span');s.className=cls;s.textContent=txt;h.appendChild(s);return s};
+    add('t',t?stamp(t)+zs():'');add('who',who,'b').style.color=col;add('v',verb);if(summ)add('s','“'+summ+'”');if(removed)add('rm',`−${removed} line${removed>1?'s':''}`);if(human)add('hu','human handle');el.appendChild(h);
+    if(text){const p=document.createElement('pre');p.className='cmt';p.style.setProperty('--cmc',col);p.textContent=text;el.appendChild(p)}
+    box.appendChild(el);prev=who}
+  if(msgs.length>n){const b=document.createElement('button');b.className='arbtn cmore';b.textContent=`show ${Math.min(200,msgs.length-n)} more (${(msgs.length-n).toLocaleString()} left)`;b.onclick=()=>{AR.convN+=200;arConvMsgs(box,msgs,wiki)};box.appendChild(b)}}
+$('#arMode').addEventListener('click',e=>{const b=e.target.closest('button[data-m]');if(!b||b.dataset.m===AR.mode)return;AR.mode=b.dataset.m;arReset()});
 
 /* ═══════════════ 07 transcripts ═══════════════ */
 function mdRender(src){
@@ -1944,8 +2026,8 @@ function retime(){document.documentElement.classList.toggle('h12',TF.h12);$('#hB
 let busy=false;
 async function refresh(manual){
   if(busy)return;busy=true;const b=$('#refreshBtn');if(manual){b.classList.remove('busy');void b.offsetWidth;b.classList.add('busy')}
-  try{const prev=S&&S.R[0]?S.R[0].run_utc:null;const [a,i,th,vx,wl,lg]=await Promise.all([loadData(),loadInterp(),loadThreads(),loadVectors(),loadWatchlist(),loadLeads()]);
-    if(a||i||th||vx||wl||lg||!S)renderAll(true);else{renderChrome();renderInterp()}
+  try{const prev=S&&S.R[0]?S.R[0].run_utc:null;const [a,i,th,vx,wl,lg,wc]=await Promise.all([loadData(),loadInterp(),loadThreads(),loadVectors(),loadWatchlist(),loadLeads(),loadWatchCfg()]);
+    if(a||i||th||vx||wl||lg||wc||!S)renderAll(true);else{renderChrome();renderInterp()}
     if(a&&prev)announceNewRuns(prev);
     if(curTab==='transcripts'&&manual)loadTranscript(TR_CUR)}finally{busy=false}
 }
@@ -1957,16 +2039,16 @@ function briefs(){
   const put=(k,html,col)=>{const el=$(`.chap[data-brief=${k}] .ans`);if(el){el.innerHTML=html;el.style.setProperty('--ans',col||C.te)}};
   put('overview',fl.length?`<b>Yes, with alerts.</b> ${esc(fl.map(k=>FLAB[k]).join(', '))} in the watch ${ago(L.run_utc)}${mv.length?`; ${esc(mv.map(l=>`${LNAME[l.id]} +${l.new_rows}`).join(', '))}`:''}.`
     :mv.length?`<b>Yes.</b> ${esc(mv.map(l=>`${LNAME[l.id]} +${l.new_rows} scans`).join(', '))} in the watch ${ago(L.run_utc)}.`
-    :`<b>No.</b> The last watch (${ago(L.run_utc)}) found nothing new.${lm?` Last movement: ${esc(LNAME[S.moving(lm)[0].id])}, ${ago(lm.run_utc)}.`:''}${isSample()?' This is bundled sample data, so no new watches will arrive.':` Next watch ${S.next>Date.now()?'in '+dur(S.next-Date.now()):'is due now'}.`}`,
+    :`<b>No.</b> The last watch (${ago(L.run_utc)}) found nothing new.${lm?` Last movement: ${esc(LNAME[S.moving(lm)[0].id])}, ${ago(lm.run_utc)}.`:''}${isSample()?' This is bundled sample data, so no new watches will arrive.':(wcfg().paused?' The watch is paused.':` Next watch ${S.next>Date.now()?'in '+dur(S.next-Date.now()):'is due now'}.`)}`,
     fl.length?C.re:mv.length?C.am:C.te);
   const act=S.asc.filter(r=>S.moving(r).length),big=act.slice().sort((a,b)=>S.rowsOf(b)-S.rowsOf(a))[0];
   put('timeline',act.length?`<b>${act.length} of ${R.length}</b> watch runs saw agent activity: ${act.map(r=>stamp(r.run_utc)).join(', ')}${zs()}. Biggest: ${stamp(big.run_utc)} with ${S.rowsOf(big)} scans.`:`<b>None</b> of the ${R.length} loaded runs saw agent activity.`,act.length?C.am:C.te);
   put('runlog',`<b>${R.length} runs</b> since ${stamp(S.asc[0].run_utc)}${zs()}. ${S.accessOk}/${R.length} had full access; ${S.flagRuns} raised alerts. Click a row for details.`,S.flagRuns?C.am:C.te);
   const th=(THREADS.threads||[]),live=th.filter(t=>t.status==='active'||t.status==='watching'),top=th.slice().sort((a,b)=>rubTotal(b)-rubTotal(a))[0];
   put('threads',`<b>${live.length} live</b> of ${th.length} threads.${live[0]?` Most active: ${esc(live[0].title)}.`:''}${top?` Strongest evidence: ${esc(top.title)} (${rubTotal(top)}/20).`:''}`,live.length?C.am:C.te);
-  const V=VECTORS.vectors||[],w=V.filter(v=>v.status==='watching').length;
+  const V=(VECTORS.vectors||[]).map(vxEff),w=V.filter(v=>v.status==='watching').length;
   put('vectors',`<b>${V.length} pathways</b> mapped from ${(VECTORS.agent_model||[]).length} ways a blocked agent thinks. ${w} are watched now; ${V.filter(v=>v.status==='ready').length} are ready to add.`,C.cy);
-  if(AR.index){const A=AR.index.archives,c=k=>A.reduce((x,a)=>x+(+((a.counts||{})[k])||0),0);put('archives',`<b>${A.length} swarms archived</b>: ${c('edits').toLocaleString()} board edits, ${c('trace records').toLocaleString()} intrusion traces, ${c('reports').toLocaleString()} scanner reports. Click a day on the chart to read what was written then.`,C.cy)}
+  if(AR.index){const A=AR.index.archives,c=k=>A.reduce((x,a)=>x+(+((a.counts||{})[k])||0),0);put('archives',`<b>${A.length} swarms archived</b>: ${c('edits').toLocaleString()} board edits, ${c('trace records').toLocaleString()} intrusion traces, ${c('reports').toLocaleString()} scanner reports. Read a wiki page as a conversation: who wrote what, in order.`,C.cy)}
   put('intel',`<b>${S.totLinks} urlquery reports</b> linked across ${R.length} runs${EXT_INTEL.length?`, plus ${EXT_INTEL.length} outside sources`:''}. Links open in your browser.`,C.cy);
 }
 function checkSince(){
@@ -2010,7 +2092,7 @@ const HELP={
   vectors:[['#vxModel','Angles for deciding where to look, then how a blocked agent thinks. Each ⌕ term is something the watch searches; "crosses M#" is how far past its task that move goes.'],
     ['#vxFams','How many pathways we watch in each family. Click one to filter.'],['#vxRot','What the watch searches this run and next.'],['#vxCopy','Copies search terms we don\'t watch yet.']],
   transcripts:[['#fileList','The raw notes and reports. Pick one to read it here.'],['#outline','Jump to a section.']],
-  archives:[['#arList','Archived swarms: public datasets their investigators released. Pick one.'],['#cvArAll','Every swarm on one timeline, each row scaled to its own peak, with our watch at the bottom.'],['#cvArAct','The selected swarm\'s activity. Hover for numbers; click a day to read what was written then.'],['#arRows','Messages and records, oldest first. Search or filter by agent name, kind or confidence.'],['#arText','The full text, shown as plain text only. Nothing in it is run or linked.']],
+  archives:[['#arList','Archived swarms: public datasets their investigators released. Pick one.'],['#cvArAll','Every swarm on one timeline, each row scaled to its own peak, with our watch at the bottom.'],['#cvArAct','The selected swarm\'s activity. Hover for numbers; click a day to read what was written then.'],['#arRows','Conversations: each wiki page several agents wrote on, read as a thread (who wrote what, in order); for the intrusion, each request with what came back. Records: every raw row. Search or filter by agent name.'],['#arText','The full text, shown as plain text only. Nothing in it is run or linked.']],
   intel:[['#extList','Outside sources worth knowing about.'],['#linkList','Every urlquery report the watch linked. Opens in your browser.'],['#cvPolar','Report links per watch run.'],['#cvPareto','Which leads produced the most report links.']],
 };
 const GLOSSARY=[['Lead','A site, relay or fleet we track, e.g. newspapers.com or api.cors.lol.'],['Watch run','One pass of the scheduled scan, every 4 hours. Each run adds a line to the log.'],
@@ -2067,10 +2149,12 @@ function retint(o,a,b){const m=new Map();for(const k in a.C)m.set(a.C[k],b.C[k])
   for(const k in o){const v=o[k];if(typeof v==='string'&&m.has(v))o[k]=m.get(v);else if(Array.isArray(v))v.forEach((x,i)=>{if(m.has(x))v[i]=m.get(x)})}}
 function syncView(){const p=themePref();
   $$('.seg[data-set=theme] button').forEach(b=>b.classList.toggle('on',b.dataset.v===p));
-  $$('.seg[data-set=read] button').forEach(b=>b.classList.toggle('on',b.dataset.v===readLevel()));}
+  $$('.seg[data-set=read] button').forEach(b=>b.classList.toggle('on',b.dataset.v===readLevel()));
+  const w=wcfg();$$('.seg[data-set=cadence] button').forEach(b=>b.classList.toggle('on',b.dataset.v==='pause'?w.paused:!w.paused&&+b.dataset.v===w.cadence_hours));
+  $('#cadNote').textContent=isSample()?'sample data: nothing runs; this only previews the setting':w.paused?'paused: the watch skips its runs until you pick a frequency':CAN_WRITE()?`saved to leads/watch.json; the watch checks it every hour and runs every ${w.cadence_hours}h`:'kept in this app only (browser mode)';}
 function applyTheme(){const t=themeOf(themePref()),nt=THEMES[t];syncView();if(nt===THM)return;const old=THM;THM=nt;document.documentElement.dataset.theme=t;
   Object.assign(C,nt.C);Object.assign(LCOL,nt.L);RUNG_COL.splice(0,RUNG_COL.length,...nt.rung);for(const k in nt.fl)FL_KIND[k]=nt.fl[k].slice();
-  [KIND,TSTAT,TKIND,AR_COL,AR_SER_COL].forEach(o=>retint(o,old,nt));
+  [KIND,TSTAT,TKIND,AR_COL,AR_SER_COL,VSTAT].forEach(o=>retint(o,old,nt));
   if(S){renderAll(false);if(AR.index)renderArchives()}}
 const readLevel=()=>document.documentElement.classList.contains('dense')?'complex':document.documentElement.classList.contains('no-eli')?'normal':'eli5';
 function setRead(v){const d=document.documentElement;d.classList.toggle('dense',v==='complex');d.classList.toggle('no-eli',v!=='eli5');store.set('sc.read',v);syncView();
@@ -2078,7 +2162,7 @@ function setRead(v){const d=document.documentElement;d.classList.toggle('dense',
 function clearNotifications(){try{store.set('sc.seen',S&&S.R[0]?S.R[0].run_utc:'')}catch(e){}$('#since').classList.remove('on');const ov=$('.tab[data-tab=overview]');if(ov)ov.classList.remove('ping');$('#toast').classList.remove('on');native({cmd:'clearBadge'});$('.vwrap').classList.remove('on')}
 $('#viewBtn').addEventListener('click',e=>{e.stopPropagation();$('.vwrap').classList.toggle('on');syncView()});
 $('#viewMenu').addEventListener('click',e=>{e.stopPropagation();const b=e.target.closest('.seg button');if(!b)return;
-  const set=b.parentElement.dataset.set;if(set==='theme'){store.set('sc.theme',b.dataset.v);applyTheme()}else if(set==='read')setRead(b.dataset.v)});
+  const set=b.parentElement.dataset.set;if(set==='theme'){store.set('sc.theme',b.dataset.v);applyTheme()}else if(set==='read')setRead(b.dataset.v);else if(set==='cadence')setCadence(b.dataset.v)});
 $('#clearNotifBtn').addEventListener('click',clearNotifications);
 document.addEventListener('click',e=>{if(!e.target.closest('.vwrap'))$('.vwrap').classList.remove('on')});
 if(mqLight&&mqLight.addEventListener)mqLight.addEventListener('change',()=>{if(themePref()==='system')applyTheme()});
@@ -2139,11 +2223,11 @@ setInterval(()=>{$('#fClock').textContent=`${tzName().toLowerCase()} ${clock(tpa
 setInterval(()=>{if(S){renderChrome();briefs();if(curTab==='interp')renderInterp();if(curTab==='threads')renderThreads()}},60000);
 
 // boot
-window.SC={refresh:()=>refresh(true),setTab,runScan,leadsSaved,flash:k=>triggerFlash(k||'activity',[])};
+window.SC={refresh:()=>refresh(true),setTab,runScan,leadsSaved,watchSaved,flash:k=>triggerFlash(k||'activity',[])};
 (async()=>{
   let auto=IS_APP;{const v=store.get('sc.auto');if(v!=null)auto=v==='1'}
   let tab=(location.hash||'').slice(1);if(!$('#pane-'+tab))tab=store.get('sc.tab')||'overview';
-  await Promise.all([loadData(),loadInterp(),loadThreads(),loadVectors(),loadWatchlist(),loadLeads()]);injectEli();applyTheme();retime();renderAll(true);setTab(tab);setAuto(auto);checkSince();requestAnimationFrame(loop);
+  await Promise.all([loadData(),loadInterp(),loadThreads(),loadVectors(),loadWatchlist(),loadLeads(),loadWatchCfg()]);injectEli();applyTheme();retime();renderAll(true);setTab(tab);setAuto(auto);checkSince();requestAnimationFrame(loop);
 })();
 </script>
 </body>

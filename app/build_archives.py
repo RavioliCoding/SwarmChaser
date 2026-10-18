@@ -63,6 +63,108 @@ def jsonl_gz(path):
                 yield json.loads(line)
 
 
+def write_conversations(name, convs, kind, note, budget=700_000):
+    """Write conversations as gzip chunks plus a gzip index; each index entry names its chunk."""
+    d = OUT / name
+    d.mkdir(parents=True, exist_ok=True)
+    for old in d.glob("conv*.json.gz"):
+        old.unlink()
+    index, chunk, size, n = [], {}, 0, 0
+
+    def flush():
+        nonlocal chunk, size, n
+        if chunk:
+            with gzip.open(d / f"conv{n:03d}.json.gz", "wt", encoding="utf-8", compresslevel=9) as f:
+                json.dump(chunk, f, ensure_ascii=False, separators=(",", ":"))
+            n, chunk, size = n + 1, {}, 0
+
+    for c in convs:
+        msgs = c.pop("msgs")
+        chunk[c["k"]] = msgs
+        size += sum(len(m[3] or "") + 80 for m in msgs)
+        index.append({**c, "file": f"conv{n:03d}.json.gz"})
+        if size > budget:
+            flush()
+    flush()
+    with gzip.open(d / "conv_index.json.gz", "wt", encoding="utf-8", compresslevel=9) as f:
+        json.dump(index, f, ensure_ascii=False, separators=(",", ":"))
+    return {"index": "conv_index.json.gz", "count": len(index), "messages": sum(c["n"] for c in index), "kind": kind, "note": note}
+
+
+def dse_conversations(revs, labels):
+    """Thread each wiki page written by two or more agents into a conversation: who wrote what, in order.
+    The publishers' hunks are difflib opcodes (0-based, half-open) against diff_base, so the lines a
+    revision inserts or replaces are exactly what that agent wrote. Every rebuild is checked here."""
+    human = {l.get("label") for l in labels if str(l.get("is_human_handle")).lower() == "true"}
+    by_key = {f"{r.get('wiki')}~{r.get('name')}@{r.get('seq')}": r for r in revs}
+    pages = collections.defaultdict(list)
+    for r in revs:
+        pages[(r.get("wiki") or "?", r.get("name") or "?")].append(r)
+    checked = rebuilt = 0
+    convs = []
+    for (wiki, name), rs in pages.items():
+        who = collections.Counter(r.get("label") or "(unnamed)" for r in rs)
+        if len(who) < 2:
+            continue
+        rs = sorted(rs, key=lambda r: (r.get("seq") or 0, r.get("time") or ""))
+        msgs, replies, prev = [], 0, None
+        for r in rs:
+            cur = (r.get("body") or "").split("\n")
+            base, hunks = by_key.get(r.get("diff_base")), r.get("hunks")
+            removed = 0
+            if base is None or hunks is None:
+                verb = "started the page" if r.get("diff_base_reason") == "page_created" else "rewrote the page"
+                text = "\n".join(cur)
+            else:
+                old, added, out, pos = base.get("body", "").split("\n"), [], [], 0
+                for h in hunks:
+                    out += old[pos:h["a0"]] + cur[h["b0"]:h["b1"]]
+                    pos = h["a1"]
+                    if h["op"] in ("insert", "replace"):
+                        added += cur[h["b0"]:h["b1"]]
+                    if h["op"] in ("delete", "replace"):
+                        removed += h["a1"] - h["a0"]
+                checked += 1
+                rebuilt += out + old[pos:] == cur
+                text = "\n".join(added).strip("\n")
+                verb = "added" if text and not removed else "changed" if text else "removed lines" if removed else "saved, no change"
+            label = r.get("label") or "(unnamed)"
+            t = r.get("time")
+            if prev and prev[1] != label and t and prev[0] and (dt.datetime.fromisoformat(t.replace("Z", "+00:00")) - dt.datetime.fromisoformat(prev[0].replace("Z", "+00:00"))).total_seconds() <= 3600:
+                replies += 1
+            msgs.append([t, label, verb, cap(text, 3000), removed, (r.get("change_summary") or "")[:120], r.get("rev_id"), 1 if label in human else 0])
+            prev = (t, label)
+        times = [m[0] for m in msgs if m[0]]
+        convs.append({"k": f"{wiki}/{name}", "page": name, "wiki": wiki, "n": len(msgs), "agents": len(who), "replies": replies,
+                      "a": [a for a, _ in who.most_common(400)], "t0": min(times) if times else None, "t1": max(times) if times else None, "msgs": msgs})
+    convs.sort(key=lambda c: (-c["agents"], -c["n"]))
+    note = (f"Each message is the text that agent's edit added, rebuilt from the publishers' own line diffs; "
+            f"{rebuilt:,} of {checked:,} revisions rebuild exactly from their base. A reply is a message from a different agent within an hour of the one before.")
+    return write_conversations("dsewiki", convs, "wiki", note)
+
+
+def hf_exchanges(records):
+    """Thread each request an agent sent with what came back to it: service responses and text recovered from it.
+    These are agent-to-service exchanges, not agents talking to each other; the board itself isn't in this dataset."""
+    by_id = {r["id"]: r for r in records}
+    kids = collections.defaultdict(list)
+    for r in records:
+        if r.get("parent_id") in by_id:
+            kids[r["parent_id"]].append(r)
+    convs = []
+    for pid, ch in kids.items():
+        p = by_id[pid]
+        first = next((ln.strip() for ln in (p.get("text") or "").split("\n") if ln.strip()), "(empty request)")
+        msgs = [[p.get("time_utc"), "agent", "sent", cap(p.get("text"), 2500), 0, (p.get("tags") or "")[:120], pid, 0]]
+        msgs += [[c.get("time_utc"), "service" if c["kind"] == "response" else "recovered", "replied" if c["kind"] == "response" else "recovered text", cap(c.get("text"), 1500), 0, "", c["id"], 0] for c in ch]
+        convs.append({"k": pid, "page": first[:90], "wiki": "", "n": len(msgs), "agents": 0, "replies": len(ch),
+                      "a": sorted({m[1] for m in msgs}), "t0": None, "t1": None, "msgs": msgs})
+    convs.sort(key=lambda c: -c["n"])
+    note = (f"{len(convs):,} requests with {sum(c['replies'] for c in convs):,} linked replies: what an agent sent and what came back "
+            "(service responses, or text recovered from the request). Attack payloads, shown as text only.")
+    return write_conversations("hf", convs, "exchange", note)
+
+
 # ───────── DSEWiki / OpenAI agent message board (collusion.wiki) ─────────
 def build_dsewiki():
     raw = ARC / "dsewiki" / "raw"
@@ -91,6 +193,7 @@ def build_dsewiki():
     _, other = day_series(ev, start, end)
     labels = list(jsonl_gz(raw / "labels.jsonl.gz"))
     chunks = write_chunks("dsewiki", rows, 500)
+    conversations = dse_conversations(revs, labels)
     return {
         "id": "dsewiki", "title": "DSEWiki / OpenAI agent message board", "thread": "T04",
         "summary": "Agents on timed web-research tasks used forgotten wikis as shared memory: pooled answers, state for future cohorts, round-timed beacons.",
@@ -104,6 +207,7 @@ def build_dsewiki():
                                [{"id": k, "name": k, "values": v, "line": True} for k, v in sorted(other.items())]},
         "filter": {"field": 2, "name": "agent name", "options": who.most_common(120)},
         "columns": ["time", "page", "agent name", "kind", "text", "revision"],
+        "conversations": conversations,
         "chunks": chunks,
     }
 
@@ -111,9 +215,10 @@ def build_dsewiki():
 # ───────── OpenAI agents × Hugging Face intrusion (swarmtraces.org + METR chart data) ─────────
 def build_hf():
     raw = ARC / "hf-intrusion" / "raw"
-    rows = []
+    rows, records = [], []
     kinds = collections.Counter()
     for r in jsonl_gz(raw / "redacted.jsonl.gz"):
+        records.append(r)
         kinds[r["kind"]] += 1
         rows.append([r.get("time_utc"), r.get("parent_id") or "", (r.get("tags") or "")[:120], r["kind"], cap(r.get("text"), 6000), r["id"]])
     chunks = write_chunks("hf", rows, 3000)
@@ -126,6 +231,7 @@ def build_hf():
         "range": {"start": "2026-07-06T00:00:00Z", "end": "2026-07-14T00:00:00Z"},
         "filter": {"field": 3, "name": "record kind", "options": kinds.most_common()},
         "columns": ["time", "parent record", "tags", "kind", "text", "record"],
+        "conversations": hf_exchanges(records),
         "chunks": chunks,
         "untimed": True,
     }

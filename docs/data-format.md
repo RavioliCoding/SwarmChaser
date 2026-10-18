@@ -12,6 +12,7 @@ SwarmChaser is a viewer. It reads a few files under a **data root** and renders 
 │   ├── threads.json         # event storylines (Threads tab)
 │   ├── interpretation.json  # analyst notes (Interpretation tab)
 │   ├── leads.json           # what you track (the lead registry)
+│   ├── watch.json           # run frequency, pause, vector settings (written by the app)
 │   └── watchlist.json       # what is being watched
 ├── reference/
 │   ├── detection_vectors.json   # the methods catalogue (Vectors tab)
@@ -84,6 +85,19 @@ The **lead identities** (their ids, display names, and colours) are defined near
 - **`archived: true`** hides a lead without deleting its history.
 
 If `leads.json` is missing, the dashboard falls back to the six sample leads plus any ids your log uses. Ids in the log that aren't in the file still show (and appear under *possible new leads*), so nothing you record is ever silently dropped.
+
+## `watch.json`: how the collector should run
+
+```json
+{"schema_version": 1, "cadence_hours": 4, "paused": false,
+ "vectors": {"V06": {"status": "watching"}, "V02": {"enabled": false}}}
+```
+
+- **`cadence_hours`**: 1, 2, 3, 4, 6, 8, 12 or 24. "Next watch" is the last run plus this. **`paused`** stops runs until it's false again.
+- **`vectors`**: overrides for `reference/detection_vectors.json`, by vector id. `status` is `idea`, `ready` or `watching`; `enabled: false` switches a vector off.
+- **Rotation** (what a collector should search beyond its fixed terms): the watchlist's `rotation` groups with the search terms of switched-off vectors removed, then the terms of vectors you set to `watching` that aren't in the watchlist yet, in groups of three. The group for a run at time *t* is `(UTC day-of-year × 24/cadence_hours + UTC hour ÷ cadence_hours) mod groups`, which for 4 hours is the original `day × 6 + hour ÷ 4`.
+
+Missing file: every 4 hours, not paused, no overrides.
 
 ## The other files
 
