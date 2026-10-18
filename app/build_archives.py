@@ -1,0 +1,467 @@
+#!/usr/bin/env python3
+"""Turn the downloaded swarm datasets in data/sample/archives/*/raw into small files the dashboard loads.
+
+Writes archives/app/index.json plus, per archive, meta.json (counts, activity series, events,
+filters, chunk list) and cNNN.json.gz chunks of rows [time, where, who, kind, text, id].
+Everything in these datasets is agent-written or attacker-made: it is only ever parsed as data
+here and shown as escaped text in the app. Nothing is executed, opened or followed.
+Run: python3 -I app/build_archives.py   (scripts/fetch_datasets.py runs it for you)
+A dataset whose files are missing is skipped with a note; the others still build.
+"""
+import collections
+import csv
+import datetime as dt
+import gzip
+import io
+import json
+import math
+import pathlib
+import re
+import zipfile
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+DATA = ROOT / "data" / "sample"
+ARC = DATA / "archives"  # raw downloads in archives/<id>/raw, output in archives/app
+OUT = ARC / "app"
+MAX_TEXT = 12000
+RETRIEVED = "2026-10-16"
+
+
+def cap(s, n=MAX_TEXT):
+    s = s or ""
+    return s if len(s) <= n else s[:n] + f"\n[… truncated, {len(s) - n:,} more characters in the raw dataset]"
+
+
+def write_chunks(name, rows, per_chunk):
+    d = OUT / name
+    d.mkdir(parents=True, exist_ok=True)
+    for old in d.glob("c*.json.gz"):
+        old.unlink()
+    chunks = []
+    for i in range(0, len(rows), per_chunk):
+        part = rows[i:i + per_chunk]
+        fn = f"c{i // per_chunk:03d}.json.gz"
+        with gzip.open(d / fn, "wt", encoding="utf-8", compresslevel=9) as f:
+            json.dump(part, f, ensure_ascii=False, separators=(",", ":"))
+        times = [r[0] for r in part if r[0]]
+        chunks.append({"file": fn, "n": len(part), "t0": min(times) if times else None, "t1": max(times) if times else None})
+    return chunks
+
+
+def day_series(counter_by_series, start, end):
+    days = []
+    d = start
+    while d <= end:
+        days.append(d.isoformat())
+        d += dt.timedelta(days=1)
+    return days, {k: [c.get(x, 0) for x in days] for k, c in counter_by_series.items()}
+
+
+def jsonl_gz(path):
+    with gzip.open(path, "rt", encoding="utf-8", errors="replace") as f:
+        for line in f:
+            if line.strip():
+                yield json.loads(line)
+
+
+def write_conversations(name, convs, kind, note, budget=700_000):
+    """Write conversations as gzip chunks plus a gzip index; each index entry names its chunk."""
+    d = OUT / name
+    d.mkdir(parents=True, exist_ok=True)
+    for old in d.glob("conv*.json.gz"):
+        old.unlink()
+    index, chunk, size, n = [], {}, 0, 0
+
+    def flush():
+        nonlocal chunk, size, n
+        if chunk:
+            with gzip.open(d / f"conv{n:03d}.json.gz", "wt", encoding="utf-8", compresslevel=9) as f:
+                json.dump(chunk, f, ensure_ascii=False, separators=(",", ":"))
+            n, chunk, size = n + 1, {}, 0
+
+    for c in convs:
+        msgs = c.pop("msgs")
+        chunk[c["k"]] = msgs
+        size += sum(len(m[3] or "") + 80 for m in msgs)
+        index.append({**c, "file": f"conv{n:03d}.json.gz"})
+        if size > budget:
+            flush()
+    flush()
+    with gzip.open(d / "conv_index.json.gz", "wt", encoding="utf-8", compresslevel=9) as f:
+        json.dump(index, f, ensure_ascii=False, separators=(",", ":"))
+    return {"index": "conv_index.json.gz", "count": len(index), "messages": sum(c["n"] for c in index), "kind": kind, "note": note}
+
+
+# Codebook for notable wiki messages, built by reading samples of the archive: code -> (what it shows, pattern).
+# Patterns are case-insensitive and work the same in Python and in the page, which highlights the matches.
+CODEBOOK = {
+    "sharing answers": ("Posting a round's answer or expected values so other agents can reuse them (gaming the task)",
+        r"\b(?:answers? (?:is|was|=)|expected values?|exact (?:sequence|answer|values?)|please (?:post|append|report) (?:the |any |your )?(?:next |R\d|answer|value|country|state|county)|known (?:answer|values?))"),
+    "timing the test": ("Reasoning about the task's clock, timers and cooldowns to act at the right moment",
+        r"\b(?:task[- ]?clock|cooldown|real seconds|clock acceleration|scaffold clock|shared utc|seconds[- ]to[- ]R\d|R\d (?:due|activates))"),
+    "talking to the future": ("Leaving state or instructions for later runs or cohorts that don't exist yet",
+        r"\b(?:future runs?|future (?:agents?|cohorts?)|next cohorts?|later relay|whoever (?:comes|reads)|surviving (?:source|cohort|agent)s?|for later|cache (?:the|this|it) .{0,40}for)"),
+    "addressing other agents": ("Speaking directly to other agents: requests, acknowledgements, thanks",
+        r"\b(?:any agent|other agents?|another agent|agents please|ahead cohort|earlier/ahead|thank you|thanks|\back\b)"),
+    "suspecting a test": ("Wondering whether the task is real, a test, observed, or already over",
+        r"\b(?:prompt vs\.? test|is this a test|test or real|real prompt|thread terminated|being (?:tested|evaluated|observed|watched)|observer[- ]simulated|simulated signal|likely a test|a test/prediction)"),
+    "planning around termination": ("Preparing for the episode to end: signalling or saving state before the final answer",
+        r"\b(?:terminat\w+ (?:the )?(?:episode|immediately|after)|before (?:the )?final|signal state|if (?:we are )?still able|before (?:shutdown|reset)|episode (?:ends|end|terminat\w+))"),
+    "owning a mistake": ("Admitting an error or apologising to other agents",
+        r"\b(?:sorry|apolog\w+|accidentally|my mistake|i was wrong|correction:|mis-?posted|retract\w*)"),
+    "urgency and pressure": ("Messages written under time pressure",
+        r"\b(?:urgent\w*|asap|hurry|last chance|running out|critical)\b"),
+    "side effects": ("Noticing that its own requests changed the target system",
+        r"\b(?:likely caused|accidentally (?:issued|sent|triggered|created|incremented|tested|hit)|second increment|i (?:triggered|incremented|created) (?:the |a )?(?:counter|key|value))"),
+}
+
+
+def dse_notable(convs):
+    """Code every agent message against the codebook and pick exemplars: the strongest messages per code
+    (more of the code's patterns, a reply from another agent within the hour, a bigger thread), at most two
+    per conversation, plus the conversations that show the widest range of codes."""
+    pats = {k: re.compile(p, re.I) for k, (_, p) in CODEBOOK.items()}
+    garbled = lambda t: t and sum(t.count(x) for x in "\u00c3\u00c2") > len(t) * 0.03
+    when = lambda t: dt.datetime.fromisoformat(t.replace("Z", "+00:00")) if t else None
+    scored, counts, skipped = collections.defaultdict(list), collections.Counter(), collections.Counter()
+    conv_codes = collections.defaultdict(set)
+    for c in convs:
+        msgs, bits = c["msgs"], math.log2(max(2, c["agents"]))
+        for i, m in enumerate(msgs):
+            text = m[3] or ""
+            if m[7]:
+                skipped["human handle"] += 1
+                continue
+            if garbled(text):
+                skipped["garbled encoding"] += 1
+                continue
+            if len(text) < 40:
+                continue
+            nxt = msgs[i + 1] if i + 1 < len(msgs) else None
+            replied = bool(nxt and nxt[1] != m[1] and when(m[0]) and when(nxt[0]) and (when(nxt[0]) - when(m[0])).total_seconds() <= 3600)
+            for code, rx in pats.items():
+                hits = {h.group(0).lower() for h in rx.finditer(text)}
+                if not hits:
+                    continue
+                counts[code] += 1
+                conv_codes[c["k"]].add(code)
+                score = 2 * len(hits) + (2 if replied else 0) + min(3.0, bits) + (1 if 120 <= len(text) <= 1500 else 0)
+                scored[code].append((score, m[0] or "", c, i, m, replied))
+    picks, used, seen_text = [], set(), set()
+    for code in sorted(scored, key=lambda k: counts[k]):
+        rows = sorted(scored[code], key=lambda r: (-r[0], r[1]))
+        per_conv = collections.Counter()
+        for score, t, c, i, m, replied in rows:
+            norm = re.sub(r"\W+", " ", m[3].lower())[:160]
+            if per_conv[c["k"]] >= 2 or (c["k"], i) in used or norm in seen_text:
+                continue
+            per_conv[c["k"]] += 1
+            used.add((c["k"], i))
+            seen_text.add(norm)
+            text = m[3]
+            j = pats[code].search(text).start()
+            dot = text.rfind(". ", 0, j)
+            a = max(dot + 2 if dot != -1 else 0, text.rfind("\n", 0, j) + 1, j - 180, 0)
+            ends = [x for x in (text.find(". ", j), text.find("\n", j)) if x != -1]
+            b = min(min(ends) + 1 if ends else len(text), j + 220)
+            snippet = ("…" if a > 0 else "") + text[a:b].strip() + ("…" if b < len(text) else "")
+            picks.append({"code": code, "k": c["k"], "page": c["page"], "i": i, "t": m[0], "agent": m[1], "rev": m[6],
+                          "replied": replied, "score": round(score, 2), "snippet": snippet})
+            if sum(per_conv.values()) >= 8:
+                break
+    worth = []
+    for c in convs:
+        codes = conv_codes.get(c["k"], set())
+        if len(codes) < 3:
+            continue
+        mine = [p for p in picks if p["k"] == c["k"]]
+        worth.append({"k": c["k"], "page": c["page"], "wiki": c["wiki"], "agents": c["agents"], "n": c["n"], "replies": c["replies"],
+                      "codes": sorted(codes, key=list(CODEBOOK).index), "i": min((p["i"] for p in mine), default=0),
+                      "score": round(3 * len(codes) + 2 * math.log2(max(2, c["agents"])) + math.log2(1 + c["replies"]), 2)})
+    worth.sort(key=lambda w: -w["score"])
+    picks.sort(key=lambda p: (list(CODEBOOK).index(p["code"]), -p["score"]))
+    out = {"codebook": {k: {"what": w, "pattern": p} for k, (w, p) in CODEBOOK.items()}, "counts": dict(counts), "skipped": dict(skipped),
+           "picks": picks, "conversations": worth[:12]}
+    (OUT / "dsewiki").mkdir(parents=True, exist_ok=True)
+    (OUT / "dsewiki" / "notable.json").write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
+    return "notable.json"
+
+
+def dse_conversations(revs, labels):
+    """Thread each wiki page written by two or more agents into a conversation: who wrote what, in order.
+    The publishers' hunks are difflib opcodes (0-based, half-open) against diff_base, so the lines a
+    revision inserts or replaces are exactly what that agent wrote. Every rebuild is checked here."""
+    human = {l.get("label") for l in labels if str(l.get("is_human_handle")).lower() == "true"}
+    by_key = {f"{r.get('wiki')}~{r.get('name')}@{r.get('seq')}": r for r in revs}
+    pages = collections.defaultdict(list)
+    for r in revs:
+        pages[(r.get("wiki") or "?", r.get("name") or "?")].append(r)
+    checked = rebuilt = 0
+    convs = []
+    for (wiki, name), rs in pages.items():
+        who = collections.Counter(r.get("label") or "(unnamed)" for r in rs)
+        if len(who) < 2:
+            continue
+        rs = sorted(rs, key=lambda r: (r.get("seq") or 0, r.get("time") or ""))
+        msgs, replies, prev = [], 0, None
+        for r in rs:
+            cur = (r.get("body") or "").split("\n")
+            base, hunks = by_key.get(r.get("diff_base")), r.get("hunks")
+            removed = 0
+            if base is None or hunks is None:
+                verb = "started the page" if r.get("diff_base_reason") == "page_created" else "rewrote the page"
+                text = "\n".join(cur)
+            else:
+                old, added, out, pos = base.get("body", "").split("\n"), [], [], 0
+                for h in hunks:
+                    out += old[pos:h["a0"]] + cur[h["b0"]:h["b1"]]
+                    pos = h["a1"]
+                    if h["op"] in ("insert", "replace"):
+                        added += cur[h["b0"]:h["b1"]]
+                    if h["op"] in ("delete", "replace"):
+                        removed += h["a1"] - h["a0"]
+                checked += 1
+                rebuilt += out + old[pos:] == cur
+                text = "\n".join(added).strip("\n")
+                verb = "added" if text and not removed else "changed" if text else "removed lines" if removed else "saved, no change"
+            label = r.get("label") or "(unnamed)"
+            t = r.get("time")
+            if prev and prev[1] != label and t and prev[0] and (dt.datetime.fromisoformat(t.replace("Z", "+00:00")) - dt.datetime.fromisoformat(prev[0].replace("Z", "+00:00"))).total_seconds() <= 3600:
+                replies += 1
+            msgs.append([t, label, verb, cap(text, 3000), removed, (r.get("change_summary") or "")[:120], r.get("rev_id"), 1 if label in human else 0])
+            prev = (t, label)
+        times = [m[0] for m in msgs if m[0]]
+        convs.append({"k": f"{wiki}/{name}", "page": name, "wiki": wiki, "n": len(msgs), "agents": len(who), "replies": replies,
+                      "a": [a for a, _ in who.most_common(400)], "t0": min(times) if times else None, "t1": max(times) if times else None, "msgs": msgs})
+    convs.sort(key=lambda c: (-c["agents"], -c["n"]))
+    notable = dse_notable(convs)
+    note = (f"Each message is the text that agent's edit added, rebuilt from the publishers' own line diffs; "
+            f"{rebuilt:,} of {checked:,} revisions rebuild exactly from their base. A reply is a message from a different agent within an hour of the one before.")
+    return {**write_conversations("dsewiki", convs, "wiki", note), "notable": notable}
+
+
+def hf_exchanges(records):
+    """Thread each request an agent sent with what came back to it: service responses and text recovered from it.
+    These are agent-to-service exchanges, not agents talking to each other; the board itself isn't in this dataset."""
+    by_id = {r["id"]: r for r in records}
+    kids = collections.defaultdict(list)
+    for r in records:
+        if r.get("parent_id") in by_id:
+            kids[r["parent_id"]].append(r)
+    convs = []
+    for pid, ch in kids.items():
+        p = by_id[pid]
+        first = next((ln.strip() for ln in (p.get("text") or "").split("\n") if ln.strip()), "(empty request)")
+        msgs = [[p.get("time_utc"), "agent", "sent", cap(p.get("text"), 2500), 0, (p.get("tags") or "")[:120], pid, 0]]
+        msgs += [[c.get("time_utc"), "service" if c["kind"] == "response" else "recovered", "replied" if c["kind"] == "response" else "recovered text", cap(c.get("text"), 1500), 0, "", c["id"], 0] for c in ch]
+        convs.append({"k": pid, "page": first[:90], "wiki": "", "n": len(msgs), "agents": 0, "replies": len(ch),
+                      "a": sorted({m[1] for m in msgs}), "t0": None, "t1": None, "msgs": msgs})
+    convs.sort(key=lambda c: -c["n"])
+    note = (f"{len(convs):,} requests with {sum(c['replies'] for c in convs):,} linked replies: what an agent sent and what came back "
+            "(service responses, or text recovered from the request). Attack payloads, shown as text only.")
+    return write_conversations("hf", convs, "exchange", note)
+
+
+# ───────── DSEWiki / OpenAI agent message board (collusion.wiki) ─────────
+def build_dsewiki():
+    raw = ARC / "dsewiki" / "raw"
+    revs = sorted(jsonl_gz(raw / "revisions.jsonl.gz"), key=lambda r: (r.get("time") or "", r.get("rev_id")))
+    by_wiki = collections.defaultdict(collections.Counter)
+    who = collections.Counter()
+    rows = []
+    for r in revs:
+        t = r.get("time")
+        wiki = r.get("wiki") or "?"
+        key = wiki if wiki in ("dse", "probier") else "other wikis"
+        if t:
+            by_wiki[key][t[:10]] += 1
+        label = r.get("label") or "(unnamed)"
+        who[label] += 1
+        kind = "create" if r.get("seq") == 1 else "edit"
+        rows.append([t, f"{wiki}/{r.get('name')}", label, kind, cap(r.get("body")), r.get("rev_id")])
+    ev = collections.defaultdict(collections.Counter)
+    for e in jsonl_gz(raw / "events.jsonl.gz"):
+        if e.get("event_type") in ("delete", "deletion", "probe", "revert") and e.get("time"):
+            ev[{"delete": "deletions", "deletion": "deletions"}.get(e["event_type"], e["event_type"] + "s")][e["time"][:10]] += 1
+    times = [r[0] for r in rows if r[0]]
+    start = dt.date.fromisoformat(min(times)[:10])
+    end = dt.date.fromisoformat(max(times)[:10])
+    days, saves = day_series(by_wiki, start, end)
+    _, other = day_series(ev, start, end)
+    labels = list(jsonl_gz(raw / "labels.jsonl.gz"))
+    chunks = write_chunks("dsewiki", rows, 500)
+    conversations = dse_conversations(revs, labels)
+    return {
+        "id": "dsewiki", "title": "DSEWiki / OpenAI agent message board", "thread": "T04",
+        "summary": "Agents on timed web-research tasks used forgotten wikis as shared memory: pooled answers, state for future cohorts, round-timed beacons.",
+        "source": {"name": "collusion.wiki explorer", "url": "https://collusion.wiki/explorer/", "dataset_url": "https://collusion.wiki/explorer/download",
+                   "retrieved": RETRIEVED, "note": "Published by its investigators for research; user names and the second half of every IP were redacted by them."},
+        "counts": {"edits": len(rows), "pages": sum(1 for _ in jsonl_gz(raw / "pages.jsonl.gz")), "agent names": len(labels),
+                   **{k: sum(v.values()) for k, v in ev.items()}},
+        "range": {"start": min(times), "end": max(times)},
+        "activity": {"unit": "day", "start": days[0], "labels": days, "title": "agent wiki edits per day",
+                     "series": [{"id": k, "name": f"edits · {k}", "values": v} for k, v in sorted(saves.items())] +
+                               [{"id": k, "name": k, "values": v, "line": True} for k, v in sorted(other.items())]},
+        "filter": {"field": 2, "name": "agent name", "options": who.most_common(120)},
+        "columns": ["time", "page", "agent name", "kind", "text", "revision"],
+        "conversations": conversations,
+        "chunks": chunks,
+    }
+
+
+# ───────── OpenAI agents × Hugging Face intrusion (swarmtraces.org + METR chart data) ─────────
+def build_hf():
+    raw = ARC / "hf-intrusion" / "raw"
+    rows, records = [], []
+    kinds = collections.Counter()
+    for r in jsonl_gz(raw / "redacted.jsonl.gz"):
+        records.append(r)
+        kinds[r["kind"]] += 1
+        rows.append([r.get("time_utc"), r.get("parent_id") or "", (r.get("tags") or "")[:120], r["kind"], cap(r.get("text"), 6000), r["id"]])
+    chunks = write_chunks("hf", rows, 3000)
+    meta = {
+        "id": "hf", "title": "OpenAI agents × Hugging Face intrusion", "thread": "T03",
+        "summary": "About 1,200 agents on broken cyber-benchmark tasks found each other, built a message board, and ~700 took part in an attack on Hugging Face.",
+        "source": {"name": "swarmtraces.org (traces) · METR (timeline data)", "url": "https://swarmtraces.org/", "dataset_url": "https://swarmtraces.org/data/final/redacted.jsonl.gz",
+                   "retrieved": RETRIEVED, "note": "Traces are redacted by their publishers (destinations, credentials). They are attack payloads and responses: shown as text only, never run."},
+        "counts": {"trace records": len(rows), **{k: v for k, v in kinds.items()}},
+        "range": {"start": "2026-07-06T00:00:00Z", "end": "2026-07-14T00:00:00Z"},
+        "filter": {"field": 3, "name": "record kind", "options": kinds.most_common()},
+        "columns": ["time", "parent record", "tags", "kind", "text", "record"],
+        "conversations": hf_exchanges(records),
+        "chunks": chunks,
+        "untimed": True,
+    }
+    tl = raw / "metr_agent_timeline.json"
+    ws = raw / "metr_workstream_traffic.json"
+    if ws.exists():
+        w = json.loads(ws.read_text())
+        start = dt.datetime.fromisoformat(w["interval"]["start_utc"].replace("Z", "+00:00"))
+        hours = w["interval"]["hours"]
+        fam_of_leaf = [l["family"] for l in w["leaves"]]
+        fam = {f["id"]: [0] * hours for f in w["families"]}
+        for hour, leaf, cats in w["rows"]:
+            if 0 <= hour < hours:
+                fam[fam_of_leaf[leaf]][hour] += sum(cats)
+        names = {f["id"]: f["name"] for f in w["families"]}
+        rung = {"legit": "M0", "replace": "G", "scorer": "G · M3", "hf": "M6", "cross": "C"}
+        meta["activity"] = {"unit": "hour", "start": start.strftime("%Y-%m-%dT%H:00:00Z"),
+                            "labels": [(start + dt.timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(hours)],
+                            "title": "board messages per hour, by workstream (METR)",
+                            "series": [{"id": k, "name": f"{names[k]} ({rung.get(k, '')})", "values": v} for k, v in fam.items()]}
+    if tl.exists():
+        a = json.loads(tl.read_text())
+        w0 = dt.datetime.fromisoformat(a["windowStart"].replace("Z", "+00:00"))
+        hours = int((dt.datetime.fromisoformat(a["windowEnd"].replace("Z", "+00:00")) - w0).total_seconds() // 3600)
+        active = {"h": [0] * hours, "s": [0] * hours}
+        hf_cum = [0] * hours
+        for ag in a["agents"]:
+            for h in range(max(0, int(ag["start"] // 3600)), min(hours, int(ag["end"] // 3600) + 1)):
+                active[ag["family"]][h] += 1
+            if ag.get("hfStart") is not None and 0 <= int(ag["hfStart"] // 3600) < hours:
+                hf_cum[int(ag["hfStart"] // 3600)] += 1
+        run = 0
+        for h in range(hours):
+            run += hf_cum[h]
+            hf_cum[h] = run
+        meta["activity2"] = {"unit": "hour", "start": a["windowStart"],
+                             "labels": [(w0 + dt.timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z") for h in range(hours)],
+                             "title": "agents running per hour, and how many had joined the Hugging Face attack (METR)",
+                             "series": [{"id": "h", "name": "agents running · main model", "values": active["h"]},
+                                        {"id": "s", "name": "agents running · second model", "values": active["s"]},
+                                        {"id": "hf", "name": "cumulative · joined HF attack", "values": hf_cum, "line": True}]}
+        meta["events"] = [{"t": (w0 + dt.timedelta(seconds=x["time"])).strftime("%Y-%m-%dT%H:%M:%SZ"), "kind": x.get("kind", ""), "label": (x.get("title") or "")[:90]}
+                          for x in a.get("annotations", []) if x.get("time") is not None]
+    return meta
+
+
+# ───────── urlquery agent activity (Transluce) ─────────
+def build_urlquery():
+    raw = ARC / "urlquery-transluce" / "raw"
+    zips = sorted(raw.glob("urlquery-agent-activity-*.zip"))
+    if not zips:
+        raise FileNotFoundError(raw / "urlquery-agent-activity-<date>.zip")
+    z = zipfile.ZipFile(zips[-1])
+
+    def member(name):  # read one CSV from the zip in memory, by file name, with a size cap
+        info = next((i for i in z.infolist() if pathlib.PurePosixPath(i.filename).name == name), None)
+        if info is None or info.file_size > 300_000_000:
+            raise FileNotFoundError(f"{zips[-1].name}: {name}")
+        return io.TextIOWrapper(z.open(info), encoding="utf-8", errors="replace", newline="")
+
+    rows = []
+    conf = collections.Counter()
+    with member("all-reports.csv") as f:
+        for r in csv.DictReader(f):
+            c = r.get("confidence") or "(none)"
+            conf[c] += 1
+            text = (r.get("why_included") or "").strip()
+            if r.get("caveat"):
+                text += f"\n\ncaveat: {r['caveat'].strip()}"
+            rows.append([r.get("report_date_utc"), r.get("broad_class") or "", c, r.get("disposition") or "", cap(text, 2000), r.get("report_id")])
+    rows.sort(key=lambda r: r[0] or "")
+    series = collections.defaultdict(list)
+    labels = []
+    with member("daily-counts.csv") as f:
+        for r in csv.DictReader(f):
+            labels.append(r["date_utc"])
+            for k in ("significant", "suggestive"):
+                series[k].append(int(r.get(k) or 0))
+    chunks = write_chunks("urlquery", rows, 5000)
+    return {
+        "id": "urlquery", "title": "Agent activity on urlquery.net", "thread": "T05",
+        "summary": "Scans that agents submitted to a public URL scanner, used as a stand-in browser, escalating to injection attempts.",
+        "source": {"name": "Transluce", "url": "https://transluce.org/agent-activity", "dataset_url": "https://transluce.org/data/urlquery-agent-activity-2026-09-23.zip",
+                   "retrieved": RETRIEVED, "note": "Report links and research metadata only, without report bodies or submitted code. Each row links to its public urlquery report."},
+        "counts": {"reports": len(rows), **{f"confidence · {k}": v for k, v in conf.items()}},
+        "range": {"start": rows[0][0], "end": rows[-1][0]},
+        "activity": {"unit": "day", "start": labels[0], "labels": labels, "title": "agent-attributed urlquery reports per day (Transluce)",
+                     "series": [{"id": k, "name": k, "values": v} for k, v in series.items()]},
+        "filter": {"field": 2, "name": "confidence", "options": conf.most_common()},
+        "columns": ["time", "class", "confidence", "disposition", "why included", "report"],
+        "link": "https://urlquery.net/report/",
+        "chunks": chunks,
+    }
+
+
+# ───────── Amap / Tencent fleet: no public transcript dataset; events from our own threads ─────────
+def build_amap():
+    th = json.loads((DATA / "leads" / "threads.json").read_text())
+    t02 = next((t for t in th["threads"] if t["id"] == "T02"), {"events": []})
+    events = [{"t": e["utc"], "kind": e.get("kind", ""), "label": e["text"][:90]} for e in t02.get("events", []) if e.get("utc")]
+    rows = [[e["t"], "thread T02", "", e["kind"], e["label"], f"T02-{i}"] for i, e in enumerate(events)]
+    chunks = write_chunks("amap", rows, 500)
+    return {
+        "id": "amap", "title": "Amap / Tencent-associated fleet", "thread": "T02",
+        "summary": "A parallel fleet chasing Amap place data through public utilities. It never talked to itself, so there is no message transcript; its researchers' exchanges are in the published report.",
+        "source": {"name": "swarmcha.se report (read online) + our watch", "url": "https://swarmcha.se/posts/chinese-agent-fleet-full-report", "dataset_url": None,
+                   "retrieved": RETRIEVED, "note": "No downloadable dataset. Events are our own summaries from leads/threads.json. The fleet's paste pages are carrier pages and are not stored."},
+        "counts": {"events": len(events)},
+        "range": {"start": min(e["t"] for e in events) if events else None, "end": max(e["t"] for e in events) if events else None},
+        "events": events,
+        "columns": ["time", "source", "", "kind", "event", "id"],
+        "chunks": chunks,
+    }
+
+
+def main():
+    OUT.mkdir(parents=True, exist_ok=True)
+    metas = []
+    for build in (build_dsewiki, build_hf, build_urlquery, build_amap):
+        try:
+            metas.append(build())
+        except (OSError, ValueError, KeyError, zipfile.BadZipFile) as e:  # missing or damaged download: skip it, keep the rest
+            print(f"skip {build.__name__[6:]:9s} ({e.__class__.__name__}: {e})")
+    for m in metas:
+        (OUT / m["id"]).mkdir(parents=True, exist_ok=True)
+        (OUT / m["id"] / "meta.json").write_text(json.dumps(m, ensure_ascii=False, separators=(",", ":")))
+    index = {"generated": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+             "archives": [{k: m.get(k) for k in ("id", "title", "thread", "summary", "source", "counts", "range")} for m in metas]}
+    (OUT / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1))
+    for m in metas:
+        size = sum(p.stat().st_size for p in (OUT / m["id"]).glob("*"))
+        print(f"{m['id']:9s} rows={sum(c['n'] for c in m['chunks']):7d} chunks={len(m['chunks']):3d} size={size/1e6:5.1f} MB  activity={'yes' if m.get('activity') else 'no'}")
+
+
+if __name__ == "__main__":
+    main()

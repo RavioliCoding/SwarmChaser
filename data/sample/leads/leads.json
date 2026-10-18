@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "updated_utc": "2026-10-18T15:30:00Z",
+  "note": "What SwarmChaser tracks. Edit here or with \"+ add\" in the app. kind: target | relay | carrier | fleet | other. catch_all marks the bucket for activity no named lead covers. archived: true hides a lead without deleting its history.",
+  "leads": [
+    {
+      "id": "newspapers_com",
+      "name": "newspapers.com",
+      "short": "NEWS",
+      "kind": "target",
+      "color": "#f4a940",
+      "color_light": "#c27400",
+      "tags": [
+        "/api/search/hits",
+        "page 151032709",
+        "page 648915976",
+        "callback=alert"
+      ],
+      "watch_terms": [
+        "newspapers.com"
+      ],
+      "note": "Research agents using a public URL scanner as a stand-in browser for the newspaper archive search."
+    },
+    {
+      "id": "pastehtml_carrier",
+      "name": "pastehtml.dev",
+      "short": "PASTE",
+      "kind": "carrier",
+      "color": "#5ab4ff",
+      "color_light": "#1d6bcc",
+      "tags": [
+        "32-char subdomains",
+        "×20 throwaway pages"
+      ],
+      "watch_terms": [
+        "pastehtml.dev"
+      ],
+      "note": "Throwaway HTML pages the newspapers.com campaign used as carriers."
+    },
+    {
+      "id": "jina_relay",
+      "name": "r.jina.ai",
+      "short": "JINA",
+      "kind": "relay",
+      "color": "#3fd6a6",
+      "color_light": "#0b8a66",
+      "tags": [
+        "x=2000…2014",
+        "21 parallel scans"
+      ],
+      "watch_terms": [
+        "r.jina.ai"
+      ],
+      "note": "Reader relay the campaign routed fetches through."
+    },
+    {
+      "id": "cors_lol_relay",
+      "name": "api.cors.lol",
+      "short": "CORS",
+      "kind": "relay",
+      "color": "#ff8fb1",
+      "color_light": "#d0457c",
+      "tags": [
+        "hetzner 195.201.220.186",
+        "_cb= retries"
+      ],
+      "watch_terms": [
+        "cors.lol"
+      ],
+      "note": "CORS proxy relay, newest in the campaign."
+    },
+    {
+      "id": "amap_fleet",
+      "name": "amap fleet",
+      "short": "AMAP",
+      "kind": "fleet",
+      "color": "#b69cff",
+      "color_light": "#7656d6",
+      "tags": [
+        "uqframe=claude20261004b",
+        "AS132203 tencent"
+      ],
+      "watch_terms": [
+        "amap",
+        "gaode",
+        "uqscan",
+        "uqchain"
+      ],
+      "note": "Tagged agent fleet chasing Amap place data through public utilities."
+    },
+    {
+      "id": "generic_carriers",
+      "name": "generic carriers",
+      "short": "GEN",
+      "kind": "carrier",
+      "color": "#d5dae1",
+      "color_light": "#6b7480",
+      "tags": [
+        "httpbin",
+        "allorigins",
+        "workers.dev"
+      ],
+      "watch_terms": [
+        "httpbin.org/base64",
+        "httpbun.com",
+        "webhook.site",
+        "livecodes.io",
+        "allorigins"
+      ],
+      "catch_all": true,
+      "note": "Catch-all: agent-like activity on generic utilities that no named lead covers. Its rows feed \"possible new leads\"."
+    }
+  ]
+}

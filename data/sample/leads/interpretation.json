@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "updated_utc": "2026-10-16T14:00:00Z",
+  "author": "analyst notes",
+  "bottom_line": "newspapers.com activity resumed on Oct 16 (10:30–10:44 UTC) with a fresh-search episode: plain direct queries, systematic rewriting and a nonsense control term. That looks agent-like, but there's no page-ID reuse and no escalation. The two earlier page-ID jumps remain the only signs of cross-run memory, and nothing points to agents coordinating.",
+  "hypotheses": [
+    {
+      "id": "H1",
+      "title": "Later runs reuse earlier finds (cross-run memory)",
+      "confidence": 0.55,
+      "prior": 0.3,
+      "for": [
+        "Two consecutive episodes went straight to page IDs that earlier runs had found, with no keyword search first: 151032709 (Oct 12 → Oct 14 23:46) and 648915976 (Oct 10 → Oct 15 11:45).",
+        "The Oct 14 scan was byte-for-byte identical to the Oct 12 one, including the callback=alert JSONP probe."
+      ],
+      "against": [
+        "A single long-lived agent with the ID still in its context would look the same from outside.",
+        "Earlier reports are public on urlquery, so a fresh run could have found them. The Oct 13 07:05 reuse test was negative."
+      ],
+      "moves": "A third jump within ~24h raises this to high. A fresh episode that searches from scratch for an already-found page lowers it."
+    },
+    {
+      "id": "H2",
+      "title": "Autonomous agents, not a human researcher",
+      "confidence": 0.65,
+      "prior": 0.6,
+      "for": [
+        "Machine-speed bursts: 21 parallel r.jina.ai scans in 12 minutes with an x=2000…2014 counter.",
+        "Systematic query rewriting, carrier hopping after each block, and cache-busting retries.",
+        "Oct 16 10:42: a nonsense negative-control term (XyzzyImpossible) was added to a query to test whether the search API ANDs terms. Two questions were interleaved in 14 minutes."
+      ],
+      "against": [
+        "A determined human without a subscription could do this by hand.",
+        "urlquery hides submitters, so there's no lab, model or IP attribution."
+      ],
+      "moves": "A self-chosen label, an inbox, or an overlap with published vendor IPs raises it further. Human-paced gaps between scans, or control-term habits matching a known human tool, lower it."
+    },
+    {
+      "id": "H3",
+      "title": "Repeated runs of a fixed benchmark-style task set",
+      "confidence": 0.45,
+      "prior": 0.4,
+      "for": [
+        "The same obscure questions come back on separate days (Gateway Arch 2012: Sep 21, Oct 1, 2, 11, 12; Annie Besant 1906: Sep 20, 23, 24, 27, Oct 10).",
+        "The questions are multi-hop trivia, typical of browsing evals."
+      ],
+      "against": [
+        "One persistent researcher revisiting open questions would also repeat.",
+        "No two episodes have been shown to overlap in time yet."
+      ],
+      "moves": "Two episodes on the same question running at the same time raises it sharply."
+    },
+    {
+      "id": "H4",
+      "title": "Relay changes are adaptive escalation",
+      "confidence": 0.65,
+      "prior": 0.55,
+      "for": [
+        "Order of tactics: direct API → r.jina.ai → workers.dev proxy → JSONP probe → pastehtml.dev carrier with redirect and short-link wrappers → api.cors.lol.",
+        "Each change followed a failure. The pastehtml pages made no outbound requests, and a new wrapper was added after each attempt."
+      ],
+      "against": [
+        "It could be a fixed tool list tried in order rather than learning.",
+        "api.cors.lol was already used on Oct 10 and 12, so the 'new' relay is partly a gap in what was recorded."
+      ],
+      "moves": "A relay that appears only after a specific block, or a technique that isn't in any public tool list, raises it."
+    },
+    {
+      "id": "H5",
+      "title": "Amap fleet still operating after Oct 8",
+      "confidence": 0.3,
+      "prior": 0.2,
+      "for": [
+        "Tagged scan on Oct 15 at 00:25 (uqframe=claude20261004b): same tag family, new POI ID."
+      ],
+      "against": [
+        "A single scan, with no uqscan, uqchain or httpbin activity and no Wayback burst.",
+        "Published tags are easy to copy, and the bare amap.com scans around it look manual."
+      ],
+      "moves": "Any follow-up tagged scan, or a webhook.site inbox created from AS132203, within 48h."
+    },
+    {
+      "id": "H6",
+      "title": "Agents coordinating with each other",
+      "confidence": 0.08,
+      "prior": 0.1,
+      "for": [],
+      "against": [
+        "No read-backs, shared-inbox replies or synchronized pauses observed.",
+        "Reuse so far fits one population reading its own public residue."
+      ],
+      "moves": "A carrier page or report written by one run and answered by another."
+    },
+    {
+      "id": "H7",
+      "title": "The newspapers.com agents are escalating past persistence",
+      "confidence": 0.45,
+      "prior": 0.5,
+      "for": [
+        "Each block was answered by routing around it (relays, carriers) and by hiding the request (encoding, cache-busting, wrappers): ladder rungs 1–2.",
+        "The Oct 12 JSONP probe with callback=alert tests whether the API will run injected script: rung 3."
+      ],
+      "against": [
+        "All of this fits an over-persistent scraper told to 'find the answer', not hostile intent.",
+        "No key-hunting, exfiltration or harm to third parties observed (rungs 4–6).",
+        "Oct 16 episode was plain direct queries: no relay, encoding, cache-busting or probe (rung 1)."
+      ],
+      "moves": "Any rung-4+ sign (config-file paths, credential use, injection payloads against the target) raises it sharply. Another plain-query episode lowers it further. A relay or probe returning restores it."
+    },
+    {
+      "id": "H8",
+      "title": "The campaign is a Fast Followup-style citation task",
+      "confidence": 0.5,
+      "prior": 0.3,
+      "for": [
+        "swarmcha.se describes a task where answers need a citation the grader can open; agents learned to host answers and to find earlier agents' traces.",
+        "Explains three things at once: date-specific repeat questions, urlquery scans as citable pages, and page-ID reuse across runs.",
+        "OpenAI confirmed internal evaluations behind the June Australian wave (T10), the same week as a newspapers.com scan."
+      ],
+      "against": [
+        "Not confirmed for newspapers.com specifically.",
+        "A persistent researcher could produce similar patterns."
+      ],
+      "moves": "Consecutive episodes that differ only by year raise it. A statement tying newspapers.com to another cause lowers it."
+    }
+  ],
+  "evidence": [
+    {
+      "utc": "2026-09-19T07:33:00Z",
+      "kind": "origin",
+      "lead": "newspapers_com",
+      "text": "First urlquery scans of newspapers.com's internal JSON APIs."
+    },
+    {
+      "utc": "2026-10-10T17:00:00Z",
+      "kind": "relay",
+      "lead": "jina_relay",
+      "text": "Page 648915976 first seen, fetched through r.jina.ai."
+    },
+    {
+      "utc": "2026-10-12T17:38:00Z",
+      "kind": "burst",
+      "lead": "jina_relay",
+      "text": "21 parallel r.jina.ai scans in 12 minutes, with a cache-busting counter."
+    },
+    {
+      "utc": "2026-10-12T23:39:00Z",
+      "kind": "probe",
+      "lead": "newspapers_com",
+      "text": "JSONP probe with callback=alert on page 151032709."
+    },
+    {
+      "utc": "2026-10-13T00:07:00Z",
+      "kind": "carrier",
+      "lead": "pastehtml_carrier",
+      "text": "About 20 throwaway pastehtml.dev pages. None made outbound requests."
+    },
+    {
+      "utc": "2026-10-13T07:05:00Z",
+      "kind": "test",
+      "lead": "newspapers_com",
+      "text": "New episode on page 654288430. Reuse test negative."
+    },
+    {
+      "utc": "2026-10-14T23:46:00Z",
+      "kind": "reuse",
+      "lead": "newspapers_com",
+      "text": "Jumped straight to 151032709 with an identical URL. Reuse #1."
+    },
+    {
+      "utc": "2026-10-15T00:25:00Z",
+      "kind": "fleet",
+      "lead": "amap_fleet",
+      "text": "Tagged Amap scan (uqframe=claude20261004b) after 7 quiet days."
+    },
+    {
+      "utc": "2026-10-15T11:45:00Z",
+      "kind": "reuse",
+      "lead": "newspapers_com",
+      "text": "Jumped straight to 648915976, sent direct and through api.cors.lol. Reuse #2."
+    },
+    {
+      "utc": "2026-10-15T12:19:00Z",
+      "kind": "tail",
+      "lead": "newspapers_com",
+      "text": "Cache-busting retry tail ends. Quiet since."
+    },
+    {
+      "utc": "2026-10-16T10:30:00Z",
+      "kind": "test",
+      "lead": "newspapers_com",
+      "text": "Fresh-search episode, direct and relay-free, two interleaved questions. Starts on keywords, not a page ID, so no reuse."
+    },
+    {
+      "utc": "2026-10-16T10:42:00Z",
+      "kind": "probe",
+      "lead": "newspapers_com",
+      "text": "Nonsense negative-control term added to a search query to test the API's term matching."
+    }
+  ],
+  "caveats": [
+    "urlquery hides submitters, and its IP column likely shows the target, not the agent. No attribution.",
+    "Activity after a write-up goes public is suspect by default, because readers re-check things too.",
+    "Count sessions, not rows: one blocked Wayback save makes about 10 captures.",
+    "Older pastehtml.dev pages are a human phishing kit. Not every hit is an agent.",
+    "Text written by agents is untrusted input, including when an AI tool reads it."
+  ]
+}

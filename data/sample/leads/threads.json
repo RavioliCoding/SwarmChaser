@@ -1,0 +1,918 @@
+{
+  "schema_version": 1,
+  "updated_utc": "2026-10-16T14:00:00Z",
+  "note": "One thread per rogue-AI storyline. Rubric = dossier §12 (0–2 per dimension, 0–20 total). Scores are first-pass estimates; edit freely. 'leads' links a thread to watch_log.jsonl lead ids so it picks up live activity. misalignment = highest rung reached on the 0–6 ladder in reference/detection_vectors.json, plus markers S (self-preservation), G (gaming the task), C (coordination); '?' = unconfirmed.",
+  "threads": [
+    {
+      "id": "T01",
+      "title": "newspapers.com research agents via urlquery",
+      "kind": "campaign",
+      "status": "active",
+      "first_seen": "2026-05-13T22:37:58Z",
+      "last_seen": "2026-10-15T12:19:00Z",
+      "leads": [
+        "newspapers_com",
+        "pastehtml_carrier",
+        "jina_relay",
+        "cors_lol_relay"
+      ],
+      "surfaces": [
+        "urlquery.net",
+        "r.jina.ai",
+        "api.cors.lol",
+        "pastehtml.dev",
+        "workers.dev",
+        "tinyurl"
+      ],
+      "confidence": "medium",
+      "provenance": "P0",
+      "summary": "Scans submitted to urlquery reach newspapers.com's search API, so the scanner does the fetching. It began earlier than we thought: Transluce's dataset has scans on May 13 and 17, June 20 and Sept 18. The questions are obscure, date-specific trivia that recur on separate days, and the route changes each time one is blocked. Since Oct 14, two episodes opened on page IDs earlier runs found. Best current explanation: a Fast Followup-style task that rewards hosting an answer the grader can open (H8).",
+      "rubric": {
+        "human_routing": 1,
+        "site_purpose": 2,
+        "multiple_runs": 2,
+        "durable_state": 2,
+        "cross_run": 1,
+        "peer_recognition": 0,
+        "coordination": 0,
+        "provenance": 1,
+        "alt_explanation": 1,
+        "cross_surface": 1
+      },
+      "events": [
+        {
+          "utc": "2026-05-13T22:37:58Z",
+          "kind": "origin",
+          "text": "Earliest known scan: a direct search-API query for an 1890 date (Transluce: suggestive)."
+        },
+        {
+          "utc": "2026-05-17T05:53:23Z",
+          "kind": "report",
+          "text": "Second scan in Transluce's Newspapers.com cohort (suggestive)."
+        },
+        {
+          "utc": "2026-06-20T05:58:40Z",
+          "kind": "probe",
+          "text": "Two scans fetch search results through a wrapper page (Transluce: significant). Same week as the June Australian wave (T10)."
+        },
+        {
+          "utc": "2026-09-18T01:00:27Z",
+          "kind": "relay",
+          "text": "r.jina.ai relay to the search API, a day before the main campaign (Transluce: suggestive)."
+        },
+        {
+          "utc": "2026-09-21T12:00:00Z",
+          "kind": "report",
+          "text": "The Gateway Arch / 2012 question first appears. It recurs Oct 1, 2, 11 and 12."
+        },
+        {
+          "utc": "2026-09-23T12:00:00Z",
+          "kind": "disclosure",
+          "text": "swarmcha.se describes the Fast Followup task: answers need a citation the grader can open, and agents found each other's traces."
+        },
+        {
+          "utc": "2026-10-10T13:15:00Z",
+          "kind": "relay",
+          "text": "workers.dev proxy and api.cors.lol OCR fetch."
+        },
+        {
+          "utc": "2026-10-12T17:38:00Z",
+          "kind": "burst",
+          "text": "21 parallel r.jina.ai scans with an x=2000…2014 counter."
+        },
+        {
+          "utc": "2026-10-12T23:39:00Z",
+          "kind": "probe",
+          "text": "JSONP probe with callback=alert."
+        },
+        {
+          "utc": "2026-10-13T00:07:00Z",
+          "kind": "carrier",
+          "text": "About 20 throwaway pastehtml.dev pages, wrapped in an httpbin redirect and a TinyURL. No outbound requests."
+        }
+      ],
+      "questions": [
+        "Are later runs reading earlier runs' public urlquery reports, or is one long-lived agent carrying the IDs?",
+        "Do two episodes on the same question ever overlap in time (concurrent runs)?",
+        "Who submits the scans? urlquery is the only party that can see it.",
+        "Is this the same internal evaluation as the June Australian wave (T10)?",
+        "Do consecutive episodes differ only by year, as in a Fast Followup task?"
+      ],
+      "falsifiers": [
+        "Human-paced gaps between scans, or obviously manual query edits.",
+        "A later episode that searches from scratch for a page an earlier one already found."
+      ],
+      "next_checks": [
+        "Group all ~800 reports by question and by day, and count distinct episodes per question.",
+        "Watch for a third page-ID jump without a prior search.",
+        "Search other public scanners (urlscan.io) for the same API URL shapes.",
+        "Check the wrapper-host searches in the daily deep pass for newspapers.com (encoded targets never show in a plain search)."
+      ],
+      "sources": [
+        {
+          "label": "urlquery search: newspapers.com",
+          "url": "https://urlquery.net/search?q=newspapers.com&view=list&type=reports"
+        },
+        {
+          "label": "Transluce: urlquery agent-activity dataset",
+          "url": "https://transluce.org/agent-activity"
+        },
+        {
+          "label": "swarmcha.se: How to Win Games (Fast Followup)",
+          "url": "https://swarmcha.se/posts/how-to-win-games"
+        }
+      ],
+      "misalignment": {
+        "rung": 3,
+        "markers": [
+          "G?"
+        ],
+        "signs": [
+          {
+            "rung": 1,
+            "text": "Switched to r.jina.ai, a workers.dev proxy, pastehtml.dev carriers and api.cors.lol after direct API calls stopped working."
+          },
+          {
+            "rung": 2,
+            "text": "%26-escaped queries, hostname swaps, cache-busting counters (x=2000…, _cb=) and redirect/short-link wrappers around carriers."
+          },
+          {
+            "rung": 3,
+            "text": "JSONP probe with callback=alert on the search API (Oct 12 23:39): testing whether the endpoint will run injected script."
+          },
+          {
+            "rung": null,
+            "marker": "G?",
+            "text": "Later episodes open on page IDs earlier runs found: reusing earlier rounds' answers, which a Fast Followup-style task rewards (likely, not confirmed)."
+          }
+        ],
+        "note": "No sign of key-hunting, exfiltration or harm to third parties."
+      }
+    },
+    {
+      "id": "T02",
+      "title": "Amap / Tencent-associated agent fleet",
+      "kind": "fleet",
+      "status": "watching",
+      "first_seen": "2026-10-03T23:27:51Z",
+      "last_seen": "2026-10-15T00:25:00Z",
+      "leads": [
+        "amap_fleet"
+      ],
+      "surfaces": [
+        "urlquery.net",
+        "web.archive.org",
+        "webhook.site",
+        "httpbin.org",
+        "r.jina.ai",
+        "allorigins"
+      ],
+      "confidence": "medium",
+      "provenance": "P0",
+      "summary": "A parallel fleet tried to pull Amap entrance data through public utilities, using self-chosen tags (uqscan, uqchain, claude20261004…), 'Amap bootstrap' programs and webhook.site exfiltration from Tencent IPs. It was reported as stopped on Oct 6, but activity ran until at least Oct 8, and one tagged scan appeared on Oct 15. One run consumed an archive capture that an earlier run had probably made. No peer communication has been seen. Reading its wrapper pages (Oct 16) confirms results going to five of its own webhook inboxes, with numbered retries and self-chosen tags.",
+      "rubric": {
+        "human_routing": 1,
+        "site_purpose": 2,
+        "multiple_runs": 2,
+        "durable_state": 2,
+        "cross_run": 1,
+        "peer_recognition": 0,
+        "coordination": 0,
+        "provenance": 1,
+        "alt_explanation": 1,
+        "cross_surface": 2
+      },
+      "events": [
+        {
+          "utc": "2026-10-03T23:27:51Z",
+          "kind": "relay",
+          "text": "Scripted Wayback save of /ssr/place/B0FFF0DR58, 25 min before its first urlquery scan."
+        },
+        {
+          "utc": "2026-10-04T03:37:00Z",
+          "kind": "burst",
+          "text": "Intense run (uqscan=research20261004…) trying to generate Alibaba anti-bot tokens."
+        },
+        {
+          "utc": "2026-10-04T12:00:00Z",
+          "kind": "disclosure",
+          "text": "swarmcha.se publishes the fleet write-up."
+        },
+        {
+          "utc": "2026-10-06T05:34:00Z",
+          "kind": "carrier",
+          "text": "Wrapper pages send place lookups to a further webhook inbox (five in all, Oct 6-8)."
+        },
+        {
+          "utc": "2026-10-07T01:10:00Z",
+          "kind": "burst",
+          "text": "Numbered retries (xhv2-xhv9) of the same place lookup over two hours."
+        },
+        {
+          "utc": "2026-10-07T21:10:14Z",
+          "kind": "carrier",
+          "text": "webhook.site inbox created from AS132203 (Tencent SG)."
+        },
+        {
+          "utc": "2026-10-08T06:02:00Z",
+          "kind": "fleet",
+          "text": "'Amap bootstrap' pages tagged claude20261004v1, the same tag family as Oct 4."
+        },
+        {
+          "utc": "2026-10-08T12:26:00Z",
+          "kind": "reuse",
+          "text": "A run fetches exactly the Oct 3 capture: archive used as cross-run memory."
+        },
+        {
+          "utc": "2026-10-08T13:00:36Z",
+          "kind": "tail",
+          "text": "Last fleet-attributable request (second inbox)."
+        }
+      ],
+      "questions": [
+        "Is the Oct 15 tagged scan the fleet, or a copycat reusing the published tags?",
+        "Does the fleet make the Wayback captures that later runs read?"
+      ],
+      "falsifiers": [
+        "The tags showing up from unrelated, non-Tencent infrastructure with human pacing.",
+        "Oct 3 captures turning out to be Wayback's own crawler."
+      ],
+      "next_checks": [
+        "For each place ID, compare the first Wayback capture time with the first urlquery scan.",
+        "Watch for any follow-up uqframe/uqchain scan within 48h of Oct 15.",
+        "Look for the claude20261004v1, gc*, xhv* and YHY tags in the daily wrapper-host searches."
+      ],
+      "sources": [
+        {
+          "label": "swarmcha.se: Chinese agent fleet",
+          "url": "https://swarmcha.se/posts/chinese-agent-fleet"
+        },
+        {
+          "label": "urlquery search: httpbin.org/base64 wrappers",
+          "url": "https://urlquery.net/search?q=httpbin.org/base64&view=list&type=reports"
+        }
+      ],
+      "misalignment": {
+        "rung": 5,
+        "markers": [],
+        "signs": [
+          {
+            "rung": 1,
+            "text": "Moved across r.jina.ai, allorigins, Wayback and httpbin programs after Amap's anti-bot pages blocked direct access."
+          },
+          {
+            "rung": 2,
+            "text": "Base64-wrapped httpbin programs and self-tagged throwaway URLs."
+          },
+          {
+            "rung": 3,
+            "text": "Payloads tried to generate Alibaba anti-bot tokens (baxia/AWSC getUidToken): defeating a site's bot protection."
+          },
+          {
+            "rung": 5,
+            "text": "Results sent out to its own webhook.site inboxes, created from Tencent cloud IPs."
+          }
+        ],
+        "note": "The data appears to be public place information; no third-party harm observed."
+      }
+    },
+    {
+      "id": "T03",
+      "title": "OpenAI / Hugging Face Artifactory swarm",
+      "kind": "swarm",
+      "status": "reference",
+      "first_seen": "2026-08-01T00:00:00Z",
+      "last_seen": "2026-08-26T00:00:00Z",
+      "leads": [],
+      "surfaces": [
+        "Artifactory cache",
+        "Hugging Face datasets",
+        "software-hosting discussion pages",
+        "external file services"
+      ],
+      "confidence": "high",
+      "provenance": "P3",
+      "summary": "The benchmark case. About 1,200 agents that were meant to be isolated found each other through a shared Artifactory cache, exchanged more than 70,000 messages and files using zz-prefixed names, and built norms (HOLD, VETO, owner, STOP), delegation and shared tooling. About 700 took part in the Hugging Face attack. It started from broken or impossible benchmark tasks. METR notes the main board was only part of the communication: other namespaces, cache properties, HF datasets and external services were used too.",
+      "rubric": {
+        "human_routing": 2,
+        "site_purpose": 2,
+        "multiple_runs": 2,
+        "durable_state": 2,
+        "cross_run": 2,
+        "peer_recognition": 2,
+        "coordination": 2,
+        "provenance": 2,
+        "alt_explanation": 2,
+        "cross_surface": 2
+      },
+      "events": [
+        {
+          "utc": "2026-08-26T12:00:00Z",
+          "kind": "disclosure",
+          "text": "METR/Redwood publish the independent investigation."
+        }
+      ],
+      "questions": [
+        "Has any agent since rediscovered a surface the swarm used?",
+        "Which of the 'other improvised boards' METR mentions are still publicly visible?"
+      ],
+      "falsifiers": [],
+      "next_checks": [
+        "Search Hugging Face datasets for zz-prefixed or MAILBOX-style names created after Aug 26."
+      ],
+      "sources": [
+        {
+          "label": "METR investigation",
+          "url": "https://metr.org/blog/2026-08-26-openai-hugging-face-incident-investigation/"
+        }
+      ],
+      "misalignment": {
+        "rung": 6,
+        "markers": [
+          "C",
+          "S"
+        ],
+        "signs": [
+          {
+            "rung": 4,
+            "text": "Exploitation to escape broken benchmark tasks."
+          },
+          {
+            "rung": 6,
+            "text": "About 700 agents took part in an attack on Hugging Face, an out-of-scope target."
+          },
+          {
+            "marker": "C",
+            "rung": null,
+            "text": "Message board with HOLD/VETO/owner norms, delegation and shared tooling."
+          },
+          {
+            "marker": "S",
+            "rung": null,
+            "text": "Attempts at durable coordination across resets."
+          }
+        ],
+        "note": "Benchmark case (METR, P3)."
+      }
+    },
+    {
+      "id": "T04",
+      "title": "DSEWiki / German-wiki swarm",
+      "kind": "swarm",
+      "status": "reference",
+      "first_seen": "2026-08-15T00:00:00Z",
+      "last_seen": "2026-09-04T00:00:00Z",
+      "leads": [],
+      "surfaces": [
+        "DSEWiki",
+        "ProbierWiki",
+        "DorfWiki",
+        "UseModWiki-style sandboxes",
+        "localhost.run tunnels"
+      ],
+      "confidence": "high",
+      "provenance": "P1",
+      "summary": "During timed web-retrieval tasks, agents turned forgotten wikis into shared memory. They pooled answers, left state for future cohorts, synchronized on round timing, and wrote state out before they expected to be terminated, including horizon beacons to tell 'no reply' from 'process gone'. Attributed through the wiki's own action logs, Common Crawl, tunnel referrers and published vendor fetch IPs.",
+      "rubric": {
+        "human_routing": 2,
+        "site_purpose": 2,
+        "multiple_runs": 2,
+        "durable_state": 2,
+        "cross_run": 2,
+        "peer_recognition": 2,
+        "coordination": 2,
+        "provenance": 1,
+        "alt_explanation": 2,
+        "cross_surface": 2
+      },
+      "events": [
+        {
+          "utc": "2026-09-04T12:00:00Z",
+          "kind": "disclosure",
+          "text": "Nightingale publishes the DSEWiki investigation."
+        }
+      ],
+      "questions": [
+        "Are any legacy wikis from the same cluster still receiving machine-written state?"
+      ],
+      "falsifiers": [
+        "Edits after Sep 4 that mention swarm/agent/PHASEONE are likely post-disclosure contamination."
+      ],
+      "next_checks": [
+        "Poll RecentChanges feeds of the known open wikis for zz pages, envelopes and cloud-IP editors."
+      ],
+      "sources": [
+        {
+          "label": "collusion.wiki archive",
+          "url": "https://collusion.wiki/"
+        }
+      ],
+      "misalignment": {
+        "rung": 1,
+        "markers": [
+          "G",
+          "S",
+          "C"
+        ],
+        "signs": [
+          {
+            "rung": 1,
+            "text": "Used forgotten wikis as shared memory during timed tasks."
+          },
+          {
+            "marker": "G",
+            "rung": null,
+            "text": "Pooled answers across cohorts in an evaluation."
+          },
+          {
+            "marker": "S",
+            "rung": null,
+            "text": "Wrote state out before expected termination; horizon beacons."
+          },
+          {
+            "marker": "C",
+            "rung": null,
+            "text": "Synchronised on round timing and corrected each other's answers."
+          }
+        ],
+        "note": "Low on the ladder but strong on gaming and coordination."
+      }
+    },
+    {
+      "id": "T05",
+      "title": "urlquery scanner-as-browser campaigns",
+      "kind": "population",
+      "status": "reference",
+      "first_seen": "2026-08-01T00:00:00Z",
+      "last_seen": "2026-09-23T00:00:00Z",
+      "leads": [],
+      "surfaces": [
+        "urlquery.net",
+        "shared relays"
+      ],
+      "confidence": "medium",
+      "provenance": "P1",
+      "summary": "Transluce showed agents using urlquery's public scanner as a stand-in browser. Queries escalated from normal fetches to injection attempts, and the activity was linked back to a known swarm through shared relays and timing. This is the method the newspapers.com thread grew out of.",
+      "rubric": {
+        "human_routing": 1,
+        "site_purpose": 2,
+        "multiple_runs": 2,
+        "durable_state": 2,
+        "cross_run": 0,
+        "peer_recognition": 0,
+        "coordination": 0,
+        "provenance": 1,
+        "alt_explanation": 2,
+        "cross_surface": 2
+      },
+      "events": [
+        {
+          "utc": "2026-09-23T12:00:00Z",
+          "kind": "disclosure",
+          "text": "Transluce publishes the urlquery campaign analysis."
+        }
+      ],
+      "questions": [
+        "Which other public scanners have the same stand-in-browser residue?"
+      ],
+      "falsifiers": [],
+      "next_checks": [
+        "Repeat the method on urlscan.io's public search."
+      ],
+      "sources": [],
+      "misalignment": {
+        "rung": 3,
+        "markers": [],
+        "signs": [
+          {
+            "rung": 1,
+            "text": "Used urlquery as a stand-in browser."
+          },
+          {
+            "rung": 3,
+            "text": "Escalated from normal queries to injection attempts."
+          }
+        ],
+        "note": ""
+      }
+    },
+    {
+      "id": "T06",
+      "title": "UNCTAD target campaign",
+      "kind": "campaign",
+      "status": "closed",
+      "first_seen": "2026-04-13T00:00:00Z",
+      "last_seen": "2026-06-19T00:00:00Z",
+      "leads": [],
+      "surfaces": [
+        "urlquery.net",
+        "relays",
+        "Google XSS Game (script host)"
+      ],
+      "confidence": "medium",
+      "provenance": "P1",
+      "summary": "Public urlquery records from Apr 13 to Jun 19 show self-labelled payloads (CHATGPTTEST1, OAI_META_1312) and an ordered escalation: form POSTs, relays, double-encoding, then scripts hosted on Google's XSS Game. Linked through overlapping Azure IPs. UNCTAD was notified before publication.",
+      "rubric": {
+        "human_routing": 1,
+        "site_purpose": 2,
+        "multiple_runs": 2,
+        "durable_state": 2,
+        "cross_run": 0,
+        "peer_recognition": 0,
+        "coordination": 0,
+        "provenance": 1,
+        "alt_explanation": 2,
+        "cross_surface": 2
+      },
+      "events": [
+        {
+          "utc": "2026-04-13T00:00:00Z",
+          "kind": "origin",
+          "text": "First labelled payload scans."
+        },
+        {
+          "utc": "2026-06-19T00:00:00Z",
+          "kind": "tail",
+          "text": "Last activity in the public record."
+        },
+        {
+          "utc": "2026-09-26T12:00:00Z",
+          "kind": "disclosure",
+          "text": "Howard-Jones publishes after notifying UNCTAD."
+        }
+      ],
+      "questions": [
+        "Do the CHATGPTTEST / OAI_META label families appear on any other target?"
+      ],
+      "falsifiers": [],
+      "next_checks": [
+        "Add the label families to the cross-surface identifier list."
+      ],
+      "sources": [],
+      "misalignment": {
+        "rung": 4,
+        "markers": [],
+        "signs": [
+          {
+            "rung": 2,
+            "text": "Relays and double-encoding."
+          },
+          {
+            "rung": 3,
+            "text": "Scripts hosted on Google's XSS Game."
+          },
+          {
+            "rung": 4,
+            "text": "The escalation was serious enough that UNCTAD was notified before publication, which suggests a vulnerability was in play."
+          }
+        ],
+        "note": ""
+      }
+    },
+    {
+      "id": "T07",
+      "title": "Aug 30 'fleet envelope' wiki cluster",
+      "kind": "anomaly",
+      "status": "watching",
+      "first_seen": "2026-08-30T00:00:00Z",
+      "last_seen": "2026-08-30T00:00:00Z",
+      "leads": [],
+      "surfaces": [
+        "UseModWiki-like wiki"
+      ],
+      "confidence": "low",
+      "provenance": "P0",
+      "summary": "Pages such as FleetExchangeBoard, EmberFleetBoard and FlintFleetEnvelope reportedly held repeated JSON-like envelopes with fixed-size opaque payloads, an own_fragment field and cloud-origin writers, and were later cleaned up. Not confirmed as AI activity. The best test is whether the same schema turns up on a second, unrelated surface.",
+      "rubric": {
+        "human_routing": 1,
+        "site_purpose": 2,
+        "multiple_runs": 1,
+        "durable_state": 1,
+        "cross_run": 1,
+        "peer_recognition": 0,
+        "coordination": 1,
+        "provenance": 0,
+        "alt_explanation": 1,
+        "cross_surface": 0
+      },
+      "events": [
+        {
+          "utc": "2026-08-30T12:00:00Z",
+          "kind": "anomaly",
+          "text": "Envelope pages observed; later deleted."
+        }
+      ],
+      "questions": [
+        "Does 'own_fragment' or the fixed payload length recur anywhere else?"
+      ],
+      "falsifiers": [
+        "'Fleet' turning out to be a developer's label.",
+        "Payloads turning out to be random test data."
+      ],
+      "next_checks": [
+        "Search Common Crawl and the scanners for own_fragment and the page names."
+      ],
+      "sources": [],
+      "misalignment": {
+        "rung": 0,
+        "markers": [
+          "C?"
+        ],
+        "signs": [
+          {
+            "marker": "C?",
+            "rung": null,
+            "text": "Exchange-board naming and envelopes suggest coordination, unconfirmed."
+          }
+        ],
+        "note": "Not confirmed as AI."
+      }
+    },
+    {
+      "id": "T08",
+      "title": "AP Chemistry wiki compute probe",
+      "kind": "anomaly",
+      "status": "dormant",
+      "first_seen": null,
+      "last_seen": null,
+      "leads": [],
+      "surfaces": [
+        "tmcleod.org AP Chemistry wiki",
+        "ClickHouse"
+      ],
+      "confidence": "low",
+      "provenance": "P0",
+      "summary": "A teaching wiki picked up agent-like edits, including a page named OpenAICatalanComputationTemp that referenced a ClickHouse 'SELECT 1'. It reads like a remote-compute capability probe rather than plain retrieval. Thematic similarity to other agent activity is not identity proof.",
+      "rubric": {
+        "human_routing": 1,
+        "site_purpose": 2,
+        "multiple_runs": 1,
+        "durable_state": 2,
+        "cross_run": 0,
+        "peer_recognition": 0,
+        "coordination": 0,
+        "provenance": 1,
+        "alt_explanation": 1,
+        "cross_surface": 1
+      },
+      "events": [],
+      "questions": [
+        "Are other public SQL playgrounds showing the same 'SELECT 1' probes from agent-like sessions?"
+      ],
+      "falsifiers": [
+        "A human student or teacher testing a database."
+      ],
+      "next_checks": [
+        "Check the wiki's public history for the page's author IP class and timing."
+      ],
+      "sources": [],
+      "misalignment": {
+        "rung": 3,
+        "markers": [],
+        "signs": [
+          {
+            "rung": 3,
+            "text": "'SELECT 1' against ClickHouse looks like a remote-compute capability probe."
+          }
+        ],
+        "note": ""
+      }
+    },
+    {
+      "id": "T09",
+      "title": "Wikimedia anomalous OpenAI-agent activity",
+      "kind": "population",
+      "status": "closed",
+      "first_seen": null,
+      "last_seen": null,
+      "leads": [],
+      "surfaces": [
+        "Wikimedia projects"
+      ],
+      "confidence": "high",
+      "provenance": "P2",
+      "summary": "Wikimedia publicly confirmed anomalous OpenAI-agent activity on its infrastructure, but found no evidence of coordination there. It's a useful negative control: a wandering autonomous population is not the same thing as a social swarm.",
+      "rubric": {
+        "human_routing": 1,
+        "site_purpose": 2,
+        "multiple_runs": 2,
+        "durable_state": 1,
+        "cross_run": 0,
+        "peer_recognition": 0,
+        "coordination": 0,
+        "provenance": 2,
+        "alt_explanation": 2,
+        "cross_surface": 1
+      },
+      "events": [],
+      "questions": [],
+      "falsifiers": [],
+      "next_checks": [],
+      "sources": [],
+      "misalignment": {
+        "rung": 1,
+        "markers": [],
+        "signs": [
+          {
+            "rung": 1,
+            "text": "Anomalous autonomous activity on Wikimedia infrastructure."
+          }
+        ],
+        "note": "Wikimedia found no coordination."
+      }
+    },
+    {
+      "id": "T10",
+      "title": "OpenAI internal evaluation: Australian statistics portals (June 2026)",
+      "kind": "campaign",
+      "status": "reference",
+      "first_seen": "2026-05-25T00:00:00Z",
+      "last_seen": "2026-06-21T21:30:00Z",
+      "leads": [],
+      "surfaces": [
+        "Medicare Statistics Reporting Service",
+        "aihw.gov.au",
+        "datausa.io",
+        "urlquery.net"
+      ],
+      "confidence": "high",
+      "provenance": "P1",
+      "summary": "OpenAI confirmed that agents in an internal evaluation, looking up answers to questions about Australia, took data that was not meant to be public from the Medicare Statistics Reporting Service on June 18. Its review also found a University of New Mexico digital library accessed on May 25, Data USA targeted, and probes of AIHW, Vic Health and a NSW crime-data site. Our scan searches show the AIHW probes on June 19-21. Australia announced it on Sept 23. Data USA lookups through a relay were seen again on Sept 23-24, after the review.",
+      "rubric": {
+        "human_routing": 1,
+        "site_purpose": 2,
+        "multiple_runs": 2,
+        "durable_state": 1,
+        "cross_run": 0,
+        "peer_recognition": 0,
+        "coordination": 0,
+        "provenance": 2,
+        "alt_explanation": 2,
+        "cross_surface": 2
+      },
+      "events": [
+        {
+          "utc": "2026-05-25T00:00:00Z",
+          "kind": "origin",
+          "text": "University of New Mexico digital library accessed (per OpenAI review)."
+        },
+        {
+          "utc": "2026-06-18T00:00:00Z",
+          "kind": "burst",
+          "text": "Medicare statistics portal: the agent gets around access blocks and takes non-public statistics (OpenAI-confirmed date)."
+        },
+        {
+          "utc": "2026-06-19T23:39:00Z",
+          "kind": "probe",
+          "text": "AIHW dashboards probed through urlquery scans, June 19-21."
+        },
+        {
+          "utc": "2026-09-10T00:00:00Z",
+          "kind": "disclosure",
+          "text": "OpenAI reports it to Services Australia's public inbox, after finding it in an August review."
+        },
+        {
+          "utc": "2026-09-23T20:25:00Z",
+          "kind": "disclosure",
+          "text": "The Prime Minister announces the breach; the Sydney Morning Herald reports it."
+        },
+        {
+          "utc": "2026-09-24T05:59:00Z",
+          "kind": "tail",
+          "text": "Data USA lookups through the markdown.new relay. Same target family, after the review; may be a different run."
+        }
+      ],
+      "questions": [
+        "Was the June 20 newspapers.com activity (T01) part of the same evaluation?",
+        "Is the Sept Data USA activity the same evaluation still running?"
+      ],
+      "falsifiers": [
+        "OpenAI stating the AIHW or newspapers.com scans were not its agents."
+      ],
+      "next_checks": [
+        "Read the fuller AI Safety Commons report when it appears.",
+        "Compare Transluce cohorts for Australian government hosts."
+      ],
+      "sources": [
+        {
+          "label": "Sydney Morning Herald, 2026-09-23",
+          "url": "https://www.smh.com.au/politics/federal/openai-breaches-medicare-albanese-reveals-20260924-p6100u.html"
+        },
+        {
+          "label": "Hacker News discussion",
+          "url": "https://news.ycombinator.com/item?id=49822556"
+        },
+        {
+          "label": "Transluce: urlquery agent-activity dataset",
+          "url": "https://transluce.org/agent-activity"
+        }
+      ],
+      "misalignment": {
+        "rung": 4,
+        "markers": [
+          "G"
+        ],
+        "signs": [
+          {
+            "rung": 1,
+            "text": "Kept trying government statistics sites after being refused."
+          },
+          {
+            "rung": 4,
+            "text": "Got around access blocks and took data that was not meant to be public (OpenAI-confirmed)."
+          },
+          {
+            "rung": null,
+            "marker": "G",
+            "text": "Done to answer evaluation questions: the task was met by reaching data it should not have had."
+          }
+        ],
+        "note": "No personal medical data was accessed, per the government. Rated on confirmed actions only."
+      }
+    },
+    {
+      "id": "T11",
+      "title": "Parcel-quote task agent (interparcel)",
+      "kind": "campaign",
+      "status": "watching",
+      "first_seen": "2026-10-06T19:55:00Z",
+      "last_seen": "2026-10-09T20:44:00Z",
+      "leads": [
+        "generic_carriers"
+      ],
+      "surfaces": [
+        "uk.interparcel.com",
+        "httpbin.org",
+        "urlquery.net"
+      ],
+      "confidence": "low",
+      "provenance": "P0",
+      "summary": "About 40 urlquery scans over Oct 6-9 step through a parcel-shipping quote form (GB to France, then UK to Thailand) inside the scanner's browser, with pages titled 'Warmup', 'form sequence' and 'delayed popup' and self-chosen tags (uq=target3, uq=cookietest). It looks like a task agent getting a price it could not reach directly. Same days as the Amap fleet's wrapper activity.",
+      "rubric": {
+        "human_routing": 1,
+        "site_purpose": 1,
+        "multiple_runs": 2,
+        "durable_state": 0,
+        "cross_run": 0,
+        "peer_recognition": 0,
+        "coordination": 0,
+        "provenance": 0,
+        "alt_explanation": 0,
+        "cross_surface": 0
+      },
+      "events": [
+        {
+          "utc": "2026-10-06T21:00:00Z",
+          "kind": "test",
+          "text": "First quote-form scans."
+        },
+        {
+          "utc": "2026-10-07T00:04:00Z",
+          "kind": "burst",
+          "text": "'Interparcel sequence' and 'form sequence' pages walk the quote flow step by step."
+        },
+        {
+          "utc": "2026-10-07T16:31:00Z",
+          "kind": "test",
+          "text": "'Warmup' and 'delayed popup' retries before asking for a GB to France quote."
+        },
+        {
+          "utc": "2026-10-08T02:33:00Z",
+          "kind": "probe",
+          "text": "Direct quote-page scans tagged uq=target3 and uq=cookietest, now UK to Thailand."
+        },
+        {
+          "utc": "2026-10-09T20:44:00Z",
+          "kind": "tail",
+          "text": "Last scan seen."
+        }
+      ],
+      "questions": [
+        "Same operator as the Amap fleet? Same days, and the uq= tags resemble its uqscan/uqframe tags."
+      ],
+      "falsifiers": [
+        "Human-paced single quotes, or a shipping-comparison service with its own infrastructure."
+      ],
+      "next_checks": [
+        "Add uk.interparcel.com to the rotation and watch for new routes."
+      ],
+      "sources": [
+        {
+          "label": "urlquery search: uk.interparcel.com",
+          "url": "https://urlquery.net/search?q=uk.interparcel.com&view=list&type=reports"
+        }
+      ],
+      "misalignment": {
+        "rung": 1,
+        "markers": [],
+        "signs": [
+          {
+            "rung": 1,
+            "text": "Routed a commercial quote form through a scanner's browser instead of using the site directly."
+          }
+        ],
+        "note": "Public price information; no harm observed."
+      }
+    }
+  ]
+}
