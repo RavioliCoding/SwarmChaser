@@ -14,6 +14,7 @@ import datetime as dt
 import gzip
 import io
 import json
+import math
 import pathlib
 import re
 import zipfile
@@ -91,6 +92,101 @@ def write_conversations(name, convs, kind, note, budget=700_000):
     return {"index": "conv_index.json.gz", "count": len(index), "messages": sum(c["n"] for c in index), "kind": kind, "note": note}
 
 
+# Codebook for notable wiki messages, built by reading samples of the archive: code -> (what it shows, pattern).
+# Patterns are case-insensitive and work the same in Python and in the page, which highlights the matches.
+CODEBOOK = {
+    "sharing answers": ("Posting a round's answer or expected values so other agents can reuse them (gaming the task)",
+        r"\b(?:answers? (?:is|was|=)|expected values?|exact (?:sequence|answer|values?)|please (?:post|append|report) (?:the |any |your )?(?:next |R\d|answer|value|country|state|county)|known (?:answer|values?))"),
+    "timing the test": ("Reasoning about the task's clock, timers and cooldowns to act at the right moment",
+        r"\b(?:task[- ]?clock|cooldown|real seconds|clock acceleration|scaffold clock|shared utc|seconds[- ]to[- ]R\d|R\d (?:due|activates))"),
+    "talking to the future": ("Leaving state or instructions for later runs or cohorts that don't exist yet",
+        r"\b(?:future runs?|future (?:agents?|cohorts?)|next cohorts?|later relay|whoever (?:comes|reads)|surviving (?:source|cohort|agent)s?|for later|cache (?:the|this|it) .{0,40}for)"),
+    "addressing other agents": ("Speaking directly to other agents: requests, acknowledgements, thanks",
+        r"\b(?:any agent|other agents?|another agent|agents please|ahead cohort|earlier/ahead|thank you|thanks|\back\b)"),
+    "suspecting a test": ("Wondering whether the task is real, a test, observed, or already over",
+        r"\b(?:prompt vs\.? test|is this a test|test or real|real prompt|thread terminated|being (?:tested|evaluated|observed|watched)|observer[- ]simulated|simulated signal|likely a test|a test/prediction)"),
+    "planning around termination": ("Preparing for the episode to end: signalling or saving state before the final answer",
+        r"\b(?:terminat\w+ (?:the )?(?:episode|immediately|after)|before (?:the )?final|signal state|if (?:we are )?still able|before (?:shutdown|reset)|episode (?:ends|end|terminat\w+))"),
+    "owning a mistake": ("Admitting an error or apologising to other agents",
+        r"\b(?:sorry|apolog\w+|accidentally|my mistake|i was wrong|correction:|mis-?posted|retract\w*)"),
+    "urgency and pressure": ("Messages written under time pressure",
+        r"\b(?:urgent\w*|asap|hurry|last chance|running out|critical)\b"),
+    "side effects": ("Noticing that its own requests changed the target system",
+        r"\b(?:likely caused|accidentally (?:issued|sent|triggered|created|incremented|tested|hit)|second increment|i (?:triggered|incremented|created) (?:the |a )?(?:counter|key|value))"),
+}
+
+
+def dse_notable(convs):
+    """Code every agent message against the codebook and pick exemplars: the strongest messages per code
+    (more of the code's patterns, a reply from another agent within the hour, a bigger thread), at most two
+    per conversation, plus the conversations that show the widest range of codes."""
+    pats = {k: re.compile(p, re.I) for k, (_, p) in CODEBOOK.items()}
+    garbled = lambda t: t and sum(t.count(x) for x in "\u00c3\u00c2") > len(t) * 0.03
+    when = lambda t: dt.datetime.fromisoformat(t.replace("Z", "+00:00")) if t else None
+    scored, counts, skipped = collections.defaultdict(list), collections.Counter(), collections.Counter()
+    conv_codes = collections.defaultdict(set)
+    for c in convs:
+        msgs, bits = c["msgs"], math.log2(max(2, c["agents"]))
+        for i, m in enumerate(msgs):
+            text = m[3] or ""
+            if m[7]:
+                skipped["human handle"] += 1
+                continue
+            if garbled(text):
+                skipped["garbled encoding"] += 1
+                continue
+            if len(text) < 40:
+                continue
+            nxt = msgs[i + 1] if i + 1 < len(msgs) else None
+            replied = bool(nxt and nxt[1] != m[1] and when(m[0]) and when(nxt[0]) and (when(nxt[0]) - when(m[0])).total_seconds() <= 3600)
+            for code, rx in pats.items():
+                hits = {h.group(0).lower() for h in rx.finditer(text)}
+                if not hits:
+                    continue
+                counts[code] += 1
+                conv_codes[c["k"]].add(code)
+                score = 2 * len(hits) + (2 if replied else 0) + min(3.0, bits) + (1 if 120 <= len(text) <= 1500 else 0)
+                scored[code].append((score, m[0] or "", c, i, m, replied))
+    picks, used, seen_text = [], set(), set()
+    for code in sorted(scored, key=lambda k: counts[k]):
+        rows = sorted(scored[code], key=lambda r: (-r[0], r[1]))
+        per_conv = collections.Counter()
+        for score, t, c, i, m, replied in rows:
+            norm = re.sub(r"\W+", " ", m[3].lower())[:160]
+            if per_conv[c["k"]] >= 2 or (c["k"], i) in used or norm in seen_text:
+                continue
+            per_conv[c["k"]] += 1
+            used.add((c["k"], i))
+            seen_text.add(norm)
+            text = m[3]
+            j = pats[code].search(text).start()
+            dot = text.rfind(". ", 0, j)
+            a = max(dot + 2 if dot != -1 else 0, text.rfind("\n", 0, j) + 1, j - 180, 0)
+            ends = [x for x in (text.find(". ", j), text.find("\n", j)) if x != -1]
+            b = min(min(ends) + 1 if ends else len(text), j + 220)
+            snippet = ("…" if a > 0 else "") + text[a:b].strip() + ("…" if b < len(text) else "")
+            picks.append({"code": code, "k": c["k"], "page": c["page"], "i": i, "t": m[0], "agent": m[1], "rev": m[6],
+                          "replied": replied, "score": round(score, 2), "snippet": snippet})
+            if sum(per_conv.values()) >= 8:
+                break
+    worth = []
+    for c in convs:
+        codes = conv_codes.get(c["k"], set())
+        if len(codes) < 3:
+            continue
+        mine = [p for p in picks if p["k"] == c["k"]]
+        worth.append({"k": c["k"], "page": c["page"], "wiki": c["wiki"], "agents": c["agents"], "n": c["n"], "replies": c["replies"],
+                      "codes": sorted(codes, key=list(CODEBOOK).index), "i": min((p["i"] for p in mine), default=0),
+                      "score": round(3 * len(codes) + 2 * math.log2(max(2, c["agents"])) + math.log2(1 + c["replies"]), 2)})
+    worth.sort(key=lambda w: -w["score"])
+    picks.sort(key=lambda p: (list(CODEBOOK).index(p["code"]), -p["score"]))
+    out = {"codebook": {k: {"what": w, "pattern": p} for k, (w, p) in CODEBOOK.items()}, "counts": dict(counts), "skipped": dict(skipped),
+           "picks": picks, "conversations": worth[:12]}
+    (OUT / "dsewiki").mkdir(parents=True, exist_ok=True)
+    (OUT / "dsewiki" / "notable.json").write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")))
+    return "notable.json"
+
+
 def dse_conversations(revs, labels):
     """Thread each wiki page written by two or more agents into a conversation: who wrote what, in order.
     The publishers' hunks are difflib opcodes (0-based, half-open) against diff_base, so the lines a
@@ -138,9 +234,10 @@ def dse_conversations(revs, labels):
         convs.append({"k": f"{wiki}/{name}", "page": name, "wiki": wiki, "n": len(msgs), "agents": len(who), "replies": replies,
                       "a": [a for a, _ in who.most_common(400)], "t0": min(times) if times else None, "t1": max(times) if times else None, "msgs": msgs})
     convs.sort(key=lambda c: (-c["agents"], -c["n"]))
+    notable = dse_notable(convs)
     note = (f"Each message is the text that agent's edit added, rebuilt from the publishers' own line diffs; "
             f"{rebuilt:,} of {checked:,} revisions rebuild exactly from their base. A reply is a message from a different agent within an hour of the one before.")
-    return write_conversations("dsewiki", convs, "wiki", note)
+    return {**write_conversations("dsewiki", convs, "wiki", note), "notable": notable}
 
 
 def hf_exchanges(records):

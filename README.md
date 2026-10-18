@@ -197,14 +197,34 @@ A fourth archive, the Amap fleet, is built from your own `threads.json`, because
 
 ![An archive conversation: agents on a wiki page coordinating answers, message by message](docs/img/archives.jpg)
 
+### Notable: what to read first
+
+The wiki archive opens on **notable**, so you don't have to read whole transcripts. At build time every agent message is coded against a written codebook of nine behaviours (counts are for the published dataset):
+
+| Behaviour | What it shows | Messages |
+|---|---|---|
+| planning around termination | preparing for the episode to end: signalling or saving state before the final answer | 332 |
+| suspecting a test | wondering whether the task is real, a test, observed, or already over | 3 |
+| side effects | noticing that its own requests changed the target system | 11 |
+| sharing answers | posting a round's answer or expected values so other agents can reuse them | 365 |
+| talking to the future | leaving state or instructions for runs or cohorts that don't exist yet | 8 |
+| timing the test | reasoning about the task's clock, timers and cooldowns | 1,909 |
+| addressing other agents | requests, acknowledgements, thanks | 406 |
+| owning a mistake | admitting an error or apologising to other agents | 69 |
+| urgency and pressure | messages written under time pressure | 416 |
+
+For each behaviour up to eight exemplars are picked. Messages score higher the more of the behaviour's patterns they match, if another agent replied within the hour, and if the thread is large. Each conversation gets at most two picks per behaviour, and each message counts for only one behaviour, with the rarest behaviours choosing first. Repeated text is dropped, and so are edits by human-flagged handles and garbled text. A second list, **conversations worth reading**, has the 12 threads that show the widest range of behaviours.
+
+Click a highlight to see it with the messages just before and after, the matching phrase marked. **Read the whole conversation from here** opens the reader at that exact message. The codebook is plain patterns in `app/build_archives.py`, written from reading the archive; it's a reading aid, not a classifier. A pick means the words are there, so read it in context. When the codebook was written, all 66 picks on the published dataset were checked against their behaviour's definition, and every pick points to the exact message, agent and revision it came from.
+
 ### Conversations
 
-Archives open on **conversations**:
+The **conversations** view reads whole threads:
 
 - **DSEWiki:** every wiki page that two or more agents wrote on is a thread (1,215 of them, 10,747 messages). Each message is exactly the text that agent's edit added, rebuilt from the publishers' own line diffs. The build checks every rebuild against the published revision and records the result on the archive's source panel. A *reply* is a message from a different agent within an hour of the one before. Edits by handles the publishers flagged as human are marked.
 - **Hugging Face intrusion:** each request an agent sent is threaded with what came back (service responses, or text recovered from the request): 26,248 requests and 61,125 replies. These are exchanges between agents and services, not agents talking to each other; the swarm's message board isn't in this dataset.
 
-**Records** shows every raw row instead. Both views have search, a filter by agent name, and a per-day filter: click a day on the activity chart.
+**Records** shows every raw row. Both views have search, a filter by agent name, and a per-day filter: click a day on the activity chart.
 
 ![The reader: one conversation, full height](docs/img/reader.jpg)
 
@@ -348,6 +368,9 @@ Yes, in a browser: `python3 scripts/serve.py`. The Mac app is macOS-only, and in
 
 **Where are my settings stored?**
 In the browser's storage and, in the Mac app, in its preferences (`local.swarmchaser.dashboard`). Your lead list and watch settings are files in your data folder. See [Resetting settings](#maintenance).
+
+**Can I trust the notable picks?**
+They're a starting point, not a verdict. Each pick matched a written pattern for its behaviour, and every one links to the exact message so you can read it in context. A message about "the final answer" might be ordinary task talk; the messages around it usually make that clear.
 
 **How much disk do the archives take?**
 About 24 MB of downloads and about 21 MB of built views. Building them into the app makes it about that much bigger.

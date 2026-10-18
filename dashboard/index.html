@@ -522,6 +522,11 @@ html.shell-mac:not(.reader-only) .reader{padding-top:30px}html.reader-only #app{
 .rdconv{padding:0}.rdconv .cmt,.rdtext{font-size:13px;line-height:1.7}.rdconv .cmh{font-size:11.5px}
 .rdtext{white-space:pre-wrap;word-break:break-word;font-family:var(--fm);color:var(--tx);margin:0}
 .rdmd{max-width:none;padding:0;font-size:13px}
+/* ── notable: highlights grouped by behaviour; the picked message shown with its neighbours ── */
+.nbh{padding:9px 10px 5px;border-top:1px solid var(--ln);font-size:10.5px;color:var(--tx3);line-height:1.45}.nbh b{display:block;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;margin-bottom:2px}
+.arr.nb .x{white-space:normal;color:var(--tx);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;line-height:1.5}
+.nbc{font-weight:800;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase}
+.cm.focus .cmt{border-left-width:3px;background:rgba(var(--ink),.075)}mark.nbm{background:rgba(244,169,64,.32);color:inherit;padding:0 1px}
 /* ── plain-words explanations (View → explanations, or E) ── */
 .eli{font-size:11px;line-height:1.45;color:var(--tx2);padding:0 10px 7px;margin-top:-1px;flex-shrink:0;white-space:normal}
 .eli::before{content:'↳ ';color:var(--tx3)}
@@ -1763,7 +1768,7 @@ $('#vxCopy').addEventListener('click',()=>{const t=newScanTerms().join(', '),b=$
 
 /* ═══════════════ 09 archives ═══════════════ */
 // Agent-written and attacker-made text: rendered with textContent only, never as HTML, never linkified.
-const AR={index:null,metas:{},cur:null,chart:'activity',rows:[],pos:{c:0,r:0},done:false,gen:0,pending:false,q:'',filter:'',day:null,sel:null,busy:false,hover:-1,cache:{},err:null,rowFile:[],mode:'records',convIdx:{},convList:[],convShown:200,convSel:-1,convN:200};
+const AR={index:null,metas:{},cur:null,chart:'activity',rows:[],pos:{c:0,r:0},done:false,gen:0,pending:false,q:'',filter:'',day:null,sel:null,busy:false,hover:-1,cache:{},err:null,rowFile:[],notable:{},nbList:[],nbSel:-1,mode:'records',convIdx:{},convList:[],convShown:200,convSel:-1,convN:200};
 const AR_COL={legit:C.te,replace:C.am,scorer:C.or,hf:C.re,cross:C.cy,h:C.cy,s:C.vi,significant:C.re,suggestive:C.am,deletions:C.re,probes:C.am,reverts:C.cy,dse:C.cy,probier:C.vi,'other wikis':C.te};
 const AR_SER_COL=[C.cy,C.am,C.te,C.vi,C.pk,C.wh];
 const arColor=(s,i)=>AR_COL[s.id]||AR_SER_COL[i%AR_SER_COL.length];
@@ -1794,16 +1799,15 @@ async function arSelect(id,reset=true){
   const src=m.source||{};
   $('#arSource').innerHTML=`<dl class="kv"><dt>source</dt><dd title="${esc(src.name||'')}">${esc(src.name||'—')}</dd><dt>retrieved</dt><dd>${esc(src.retrieved||'—')}</dd><dt>thread</dt><dd>${esc(m.thread||'—')}</dd></dl>
     <p style="font-size:11px;color:var(--tx2);line-height:1.5;margin-top:8px">${esc(src.note||'')}</p>${src.url?`<p style="margin-top:8px;font-size:11px"><a href="${esc(src.url)}" target="_blank" rel="noopener noreferrer">read the original publication ↗</a></p>`:''}${m.conversations?`<p style="font-size:11px;color:var(--tx2);line-height:1.5;margin-top:8px">${esc(m.conversations.note||'')}</p>`:''}`;
-  $('#arFilter').innerHTML=`<option value="">any ${esc((m.filter&&m.filter.name)||'rows')}</option>`+((m.filter&&m.filter.options)||[]).map(([v,n])=>`<option value="${esc(v)}">${esc(v||'(blank)')} · ${Number(n).toLocaleString()}</option>`).join('');
-  $('#arFilter').style.display=m.filter?'':'none';
   $('#arSwitch').innerHTML=m.activity2?`<button data-c="activity" class="on">${esc(m.id==='hf'?'workstreams':'activity')}</button><button data-c="activity2">${esc(m.id==='hf'?'agents running':'more')}</button>`:'';
-  AR.mode=m.conversations?'conv':'records';$('#arMode').innerHTML=m.conversations?`<button data-m="conv">${m.conversations.kind==='wiki'?'conversations':'exchanges'}</button><button data-m="records">records</button>`:'';
+  AR.mode=m.conversations?(m.conversations.notable?'notable':'conv'):'records';$('#arMode').innerHTML=m.conversations?`${m.conversations.notable?'<button data-m="notable">notable</button>':''}<button data-m="conv">${m.conversations.kind==='wiki'?'conversations':'exchanges'}</button><button data-m="records">records</button>`:'';
   drawArAll();drawArAct();arReset();
 }
-function arReset(){AR.gen++;AR.rows=[];AR.rowFile=[];AR.pos={c:0,r:0};AR.done=false;AR.sel=null;AR.convSel=-1;AR.convShown=200;AR.convList=[];$('#arRows').innerHTML='';$('#arText').textContent='Pick a row to read it.';$('#arMeta').innerHTML='';$('#arConv').innerHTML=AR.mode==='conv'?'<p class="empty">Pick a conversation to read it as a thread: who wrote what, in order.</p>':'';arPanelMode();if(AR.mode==='conv'){arConvList();return}arMoreRows()}
+function arReset(){AR.gen++;AR.rows=[];AR.rowFile=[];AR.pos={c:0,r:0};AR.done=false;AR.sel=null;AR.convSel=-1;AR.convShown=200;AR.convList=[];$('#arRows').innerHTML='';$('#arText').textContent='Pick a row to read it.';$('#arMeta').innerHTML='';$('#arConv').innerHTML=AR.mode==='notable'?'<p class="empty">Pick a highlight to see it with the messages around it.</p>':AR.mode==='conv'?'<p class="empty">Pick a conversation to read it as a thread: who wrote what, in order.</p>':'';arPanelMode();if(AR.mode==='notable'){arNotableList();return}if(AR.mode==='conv'){arConvList();return}arMoreRows()}
 function arMatch(m,row){if(AR.filter&&String(row[m.filter.field])!==AR.filter)return false;if(AR.day&&!(row[0]||'').startsWith(AR.day))return false;
   if(AR.q){const q=AR.q;return (row[4]||'').toLowerCase().includes(q)||(row[1]||'').toLowerCase().includes(q)||(row[2]||'').toLowerCase().includes(q)}return true}
 async function arMoreRows(){
+  if(AR.mode==='notable')return;
   if(AR.mode==='conv'){if(AR.convShown<AR.convList.length){AR.convShown+=200;arConvRender()}return}
   if(AR.busy){AR.pending=true;return}if(AR.done)return;
   AR.busy=true;const id=AR.cur,gen=AR.gen,m=AR.metas[id],want=AR.rows.length+200;$('#arMore').textContent='loading…';let stale=false;
@@ -1884,7 +1888,7 @@ function drawArAct(){
 }
 $('#arList').addEventListener('click',e=>{const d=e.target.closest('.arc');if(d&&d.dataset.id!==AR.cur)arSelect(d.dataset.id)});
 $('#arSwitch').addEventListener('click',e=>{const b=e.target.closest('button[data-c]');if(b){AR.chart=b.dataset.c;AR.hover=-1;drawArAct()}});
-$('#arRows').addEventListener('click',e=>{const d=e.target.closest('.arr');if(d)(AR.mode==='conv'?arConvOpen:arShow)(+d.dataset.i)});
+$('#arRows').addEventListener('click',e=>{const d=e.target.closest('.arr');if(d)(AR.mode==='notable'?arNotableOpen:AR.mode==='conv'?arConvOpen:arShow)(+d.dataset.i)});
 $('#arMore').addEventListener('click',()=>arMoreRows());
 $('#arRows').addEventListener('scroll',e=>{const el=e.currentTarget;if(el.scrollTop+el.clientHeight>el.scrollHeight-200)arMoreRows()});
 let arQT=null;$('#arSearch').addEventListener('input',e=>{clearTimeout(arQT);arQT=setTimeout(()=>{AR.q=e.target.value.trim().toLowerCase();arReset()},350)});
@@ -1904,9 +1908,9 @@ async function arConvIndex(id){const m=AR.metas[id];if(!m||!m.conversations)retu
 const agentCol=a=>{let h=0;for(const ch of String(a))h=(h*31+ch.charCodeAt(0))|0;return [C.am,C.cy,C.te,C.vi,C.pk,C.or,C.ye][Math.abs(h)%7]};
 function arConvMatches(c){const q=AR.q;if(q&&!(c.page.toLowerCase().includes(q)||c.a.some(a=>a.toLowerCase().includes(q))))return false;
   if(AR.filter&&!c.a.includes(AR.filter))return false;if(AR.day&&c.t0&&c.t1&&(AR.day<c.t0.slice(0,10)||AR.day>c.t1.slice(0,10)))return false;return true}
-function arPanelMode(){const m=AR.metas[AR.cur]||{},conv=AR.mode==='conv';$('#arText').style.display=conv?'none':'';$('#arConv').style.display=conv?'':'none';
-  $('#arSearch').placeholder=conv?'search pages and agent names…':'search the text…';$$('#arMode button').forEach(b=>b.classList.toggle('on',b.dataset.m===AR.mode));
-  $('#arFilter').style.display=m.filter&&!(conv&&m.conversations&&m.conversations.kind!=='wiki')?'':'none';if(!conv)$('#arMsgTitle').textContent='message'}
+function arPanelMode(){const m=AR.metas[AR.cur]||{},conv=AR.mode!=='records';if(AR.mode!=='notable')arFilterOptions(m);$('#arText').style.display=conv?'none':'';$('#arConv').style.display=conv?'':'none';
+  $('#arSearch').placeholder=AR.mode==='notable'?'search the highlights…':conv?'search pages and agent names…':'search the text…';$$('#arMode button').forEach(b=>b.classList.toggle('on',b.dataset.m===AR.mode));
+  $('#arFilter').style.display=AR.mode==='notable'||m.filter&&!(conv&&m.conversations&&m.conversations.kind!=='wiki')?'':'none';if(!conv)$('#arMsgTitle').textContent='message'}
 async function arConvList(){const id=AR.cur,gen=AR.gen;$('#arPos').textContent='loading conversations…';let idx;
   try{idx=await arConvIndex(id)}catch(e){$('#arPos').textContent='could not read the conversations';console.error(e);return}if(gen!==AR.gen)return;
   AR.convList=idx.filter(arConvMatches);arConvRender()}
@@ -1929,7 +1933,7 @@ function arConvMsgs(box,msgs,wiki,st){box.innerHTML='';const n=Math.min(msgs.len
     if(text){const p=document.createElement('pre');p.className='cmt';p.style.setProperty('--cmc',col);p.textContent=text;el.appendChild(p)}
     box.appendChild(el);prev=who}
   if(msgs.length>n){const b=document.createElement('button');b.className='arbtn cmore';b.textContent=`show ${Math.min(200,msgs.length-n)} more (${(msgs.length-n).toLocaleString()} left)`;b.onclick=()=>{st.n+=box===$('#arConv')?200:400;arConvMsgs(box,msgs,wiki,st)};box.appendChild(b)}}
-$('#arMode').addEventListener('click',e=>{const b=e.target.closest('button[data-m]');if(!b||b.dataset.m===AR.mode)return;AR.mode=b.dataset.m;arReset()});
+$('#arMode').addEventListener('click',e=>{const b=e.target.closest('button[data-m]');if(!b||b.dataset.m===AR.mode)return;AR.mode=b.dataset.m;AR.filter='';AR.q='';$('#arSearch').value='';arReset()});
 
 /* ── reader: full-height view of a conversation, record or document, with its own address (#read=…) for a new window ── */
 const READER_ONLY=/^#read=/.test(location.hash);if(READER_ONLY)document.documentElement.classList.add('reader-only');
@@ -1939,16 +1943,18 @@ function openReader(route,inWindow){if(!route){toast('nothing picked','Pick a co
   RD.route=route;$('#reader').classList.add('on');renderReader(route)}
 function closeReader(){if(READER_ONLY)return;$('#reader').classList.remove('on');RD.route=null}
 // the route of whatever the panels show now
-function arRoute(){if(AR.mode==='conv'){const c=AR.convList[AR.convSel];return c?`conv/${encodeURIComponent(AR.cur)}/${encodeURIComponent(c.k)}`:null}
+function arRoute(){if(AR.mode==='notable'){const it=AR.nbList[AR.nbSel];return it?`conv/${encodeURIComponent(AR.cur)}/${encodeURIComponent(it.k)}/${it.i||0}`:null}
+  if(AR.mode==='conv'){const c=AR.convList[AR.convSel];return c?`conv/${encodeURIComponent(AR.cur)}/${encodeURIComponent(c.k)}`:null}
   const r=AR.rows[AR.sel],f=AR.rowFile[AR.sel];return r&&f?`rec/${encodeURIComponent(AR.cur)}/${encodeURIComponent(f)}/${encodeURIComponent(r[5])}`:null}
 async function renderReader(route){const [kind,a,b,c]=route.split('/').map(decodeURIComponent),body=$('#rdBody'),title=$('#rdTitle'),meta=$('#rdMeta');
-  body.innerHTML='<p class="empty">loading…</p>';
+  body.innerHTML='<p class="empty">loading…</p>';RD.focusEl=null;
   try{
     if(kind==='conv'){const m=AR.metas[a]||await arMeta(a),cv=(await arConvIndex(a)).find(x=>x.k===b);if(!cv)throw new Error('not found');
       const msgs=(await arChunk(a,cv.file))[cv.k]||[],wiki=m.conversations.kind==='wiki';
       title.textContent=wiki?`${cv.wiki}/${cv.page}`:`request → what came back · ${cv.page}`;
       meta.textContent=`${m.title} · ${wiki?cv.agents+' agents · ':''}${cv.n.toLocaleString()} messages${cv.t0?` · ${stamp(cv.t0)} → ${stamp(cv.t1)}${zs()}`:''}`;
-      body.innerHTML='';const box=document.createElement('div');box.className='conv rdconv';body.appendChild(box);RD.state={n:400};arConvMsgs(box,msgs,wiki,RD.state)}
+      body.innerHTML='';const box=document.createElement('div');box.className='conv rdconv';body.appendChild(box);const at=c!=null&&c!==''?+c:-1;RD.state={n:Math.max(400,at+50)};arConvMsgs(box,msgs,wiki,RD.state);
+      if(at>=0){const el=box.querySelectorAll('.cm')[at];if(el){el.classList.add('focus');RD.focusEl=el}}}
     else if(kind==='rec'){const m=AR.metas[a]||await arMeta(a),r=(await arChunk(a,b)).find(x=>String(x[5])===c);if(!r)throw new Error('not found');
       title.textContent=`${r[3]||'record'} · ${r[5]||''}`;meta.textContent=`${m.title} · ${r[0]?stamp(r[0])+zs():'no time'} · ${r[2]||r[1]||''}`;
       body.innerHTML='';const p=document.createElement('pre');p.className='rdtext';p.textContent=r[4]||'(empty)';body.appendChild(p)}
@@ -1956,7 +1962,8 @@ async function renderReader(route){const [kind,a,b,c]=route.split('/').map(decod
       const txt=await r.text();title.textContent=f.path;meta.textContent=`${(txt.length/1024).toFixed(1)} kb · ${txt.split('\n').length} lines`;body.innerHTML=`<article class="md rdmd">${mdRender(txt).html}</article>`}
     else throw new Error('unknown');
   }catch(e){body.innerHTML='<p class="empty">Couldn\'t open this here. The archive may not be built, or the file moved.</p>';title.textContent='not found';meta.textContent=''}
-  $('#rdScroll').scrollTop=0;if(READER_ONLY)document.title=`${title.textContent} · SwarmChaser`}
+  const sc=$('#rdScroll');sc.scrollTop=0;if(RD.focusEl)sc.scrollTop=RD.focusEl.getBoundingClientRect().top-sc.getBoundingClientRect().top-80;  // open at the named message
+  if(READER_ONLY)document.title=`${title.textContent} · SwarmChaser`}
 // j / k: next or previous message or heading
 function rdStep(dir){const sc=$('#rdScroll'),top=sc.getBoundingClientRect().top,items=$$('#rdBody .cm:not(.same), #rdBody h1, #rdBody h2, #rdBody h3');if(!items.length)return;
   const pos=items.map(el=>el.getBoundingClientRect().top-top),i=dir>0?pos.findIndex(p=>p>8):pos.map((p,k)=>[p,k]).filter(([p])=>p<-8).map(([,k])=>k).pop();
@@ -1966,6 +1973,39 @@ $('#rdWin').addEventListener('click',()=>{const r=RD.route;closeReader();openRea
 $('#arRead').addEventListener('click',()=>openReader(arRoute()));$('#arWin').addEventListener('click',()=>openReader(arRoute(),true));
 $('#trRead').addEventListener('click',()=>openReader(`doc/${TR_CUR}`));$('#trWin').addEventListener('click',()=>openReader(`doc/${TR_CUR}`,true));
 $('#arRows').addEventListener('dblclick',e=>{if(e.target.closest('.arr'))setTimeout(()=>openReader(arRoute()),60)});
+
+/* ── notable: messages and conversations worth reading, coded at build time against a written codebook ── */
+const NB_COL={'sharing answers':C.am,'timing the test':C.cy,'talking to the future':C.pk,'addressing other agents':C.te,'suspecting a test':C.vi,'planning around termination':C.re,'owning a mistake':C.ye,'urgency and pressure':C.tx2,'side effects':C.or};
+async function arNotable(id){const m=AR.metas[id];if(!m||!m.conversations||!m.conversations.notable)return null;if(AR.notable[id])return AR.notable[id];
+  const r=await fetch(`../archives/app/${encodeURIComponent(id)}/${encodeURIComponent(m.conversations.notable)}`,{cache:'no-store'});if(!r.ok)throw new Error('notable');return AR.notable[id]=await r.json()}
+function arFilterOptions(m){$('#arFilter').innerHTML=`<option value="">any ${esc((m.filter&&m.filter.name)||'rows')}</option>`+((m.filter&&m.filter.options)||[]).map(([v,n])=>`<option value="${esc(v)}">${esc(v||'(blank)')} · ${Number(n).toLocaleString()}</option>`).join('');$('#arFilter').value=AR.filter}
+async function arNotableList(){const id=AR.cur,gen=AR.gen;$('#arPos').textContent='loading highlights…';let nb;
+  try{nb=await arNotable(id)}catch(e){$('#arPos').textContent='could not read the highlights';return}if(gen!==AR.gen||!nb)return;
+  const codes=Object.keys(nb.codebook),cnt=c=>nb.picks.filter(p=>p.code===c).length,q=AR.q,hit=s=>!q||String(s).toLowerCase().includes(q);
+  $('#arFilter').innerHTML=`<option value="">all highlights · ${nb.picks.length}</option><option value="__conv">conversations worth reading · ${nb.conversations.length}</option>`+codes.map(c=>`<option value="${esc(c)}">${esc(c)} · ${cnt(c)}</option>`).join('');$('#arFilter').value=AR.filter;
+  let html='',list=[];
+  if(AR.filter==='__conv'){list=nb.conversations.filter(c=>hit(c.page)||c.codes.some(hit));
+    html=list.map((c,i)=>`<div class="arr nb" data-i="${i}"><span class="t"><b>${c.agents}</b> agents</span><span class="w">${esc(c.page)} · ${c.n.toLocaleString()} messages · ${c.replies.toLocaleString()} replies</span><span class="x">${c.codes.map(k=>`<span class="nbc" style="color:${NB_COL[k]||C.tx2}">${esc(k)}</span>`).join(' · ')}</span></div>`).join('')}
+  else for(const code of codes){if(AR.filter&&AR.filter!==code)continue;const ps=nb.picks.filter(p=>p.code===code&&(hit(p.snippet)||hit(p.agent)||hit(p.page)));if(!ps.length)continue;
+    html+=`<div class="nbh"><b style="color:${NB_COL[code]||C.wh}">${esc(code)}</b><span>${esc(nb.codebook[code].what)} · ${(nb.counts[code]||0).toLocaleString()} messages match</span></div>`;
+    for(const p of ps){html+=`<div class="arr nb" data-i="${list.length}"><span class="t">${p.t?mdd(p.t):''}</span><span class="w">${esc(p.agent)} · ${esc(p.page)}${p.replied?' · got a reply':''}</span><span class="x">${esc(p.snippet)}</span></div>`;list.push(p)}}
+  AR.nbList=list;$('#arRows').innerHTML=html||'<div class="empty">nothing matches</div>';$('#arMore').style.display='none';
+  $('#arListTag').textContent=AR.filter==='__conv'?`${list.length} conversations`:`${list.length} highlights`;
+  $('#arPos').textContent=`${Object.values(nb.counts).reduce((a,b)=>a+b,0).toLocaleString()} coded matches · ${codes.length} behaviours · human handles and garbled text left out`}
+async function arNotableOpen(i){const it=AR.nbList[i];if(!it)return;AR.nbSel=i;$$('#arRows .arr').forEach(e=>e.classList.toggle('on',+e.dataset.i===i));
+  const id=AR.cur,box=$('#arConv'),nb=AR.notable[id];box.textContent='loading…';let cv,msgs;
+  try{cv=(await arConvIndex(id)).find(x=>x.k===it.k);msgs=(await arChunk(id,cv.file))[cv.k]||[]}catch(e){box.textContent='could not read this conversation';return}if(AR.cur!==id||AR.nbSel!==i)return;
+  const at=it.i||0,from=Math.max(0,at-1);
+  $('#arMsgTitle').textContent=it.code||`${cv.wiki}/${cv.page}`;
+  $('#arMeta').innerHTML=(it.code?[['why',nb.codebook[it.code].what],['agent',it.agent],['page',`${cv.wiki}/${cv.page}`],['when',it.t?stamp(it.t)+zs():'—'],['reply',it.replied?'another agent answered within the hour':'—']]
+    :[['page',`${cv.wiki}/${cv.page}`],['agents',cv.agents],['messages',cv.n.toLocaleString()],['shows',it.codes.join(', ')]]).map(([k,v])=>`<dt>${esc(k)}</dt><dd title="${esc(v)}">${esc(v)}</dd>`).join('');
+  arConvMsgs(box,msgs.slice(from,at+2),true,{n:3});const focus=box.querySelectorAll('.cm')[at-from];
+  if(focus){focus.classList.add('focus');if(it.code)arMark(focus.querySelector('.cmt'),new RegExp(nb.codebook[it.code].pattern,'gi'))}
+  const b=document.createElement('button');b.className='arbtn cmore';b.textContent=`read the whole conversation from here (${cv.n.toLocaleString()} messages)`;b.onclick=()=>openReader(arRoute());box.appendChild(b);box.parentElement.scrollTop=0}
+// wrap regex matches in <mark>, working on text only (agent text is never parsed as HTML)
+function arMark(el,rx){if(!el)return;const t=el.textContent,frag=document.createDocumentFragment();let last=0,m;rx.lastIndex=0;
+  while((m=rx.exec(t))){if(!m[0]){rx.lastIndex++;continue}frag.append(t.slice(last,m.index));const mk=document.createElement('mark');mk.className='nbm';mk.textContent=m[0];frag.append(mk);last=m.index+m[0].length}
+  frag.append(t.slice(last));el.textContent='';el.append(frag)}
 
 /* ═══════════════ 07 transcripts ═══════════════ */
 function mdRender(src){
@@ -2097,7 +2137,7 @@ function briefs(){
   put('threads',`<b>${live.length} live</b> of ${th.length} threads.${live[0]?` Most active: ${esc(live[0].title)}.`:''}${top?` Strongest evidence: ${esc(top.title)} (${rubTotal(top)}/20).`:''}`,live.length?C.am:C.te);
   const V=(VECTORS.vectors||[]).map(vxEff),w=V.filter(v=>v.status==='watching').length;
   put('vectors',`<b>${V.length} pathways</b> mapped from ${(VECTORS.agent_model||[]).length} ways a blocked agent thinks. ${w} are watched now; ${V.filter(v=>v.status==='ready').length} are ready to add.`,C.cy);
-  if(AR.index){const A=AR.index.archives,c=k=>A.reduce((x,a)=>x+(+((a.counts||{})[k])||0),0);put('archives',`<b>${A.length} swarms archived</b>: ${c('edits').toLocaleString()} board edits, ${c('trace records').toLocaleString()} intrusion traces, ${c('reports').toLocaleString()} scanner reports. Read a wiki page as a conversation: who wrote what, in order.`,C.cy)}
+  if(AR.index){const A=AR.index.archives,c=k=>A.reduce((x,a)=>x+(+((a.counts||{})[k])||0),0);put('archives',`<b>${A.length} swarms archived</b>: ${c('edits').toLocaleString()} board edits, ${c('trace records').toLocaleString()} intrusion traces, ${c('reports').toLocaleString()} scanner reports. Notable picks out the messages worth reading first; conversations read each wiki page as a thread.`,C.cy)}
   put('intel',`<b>${S.totLinks} urlquery reports</b> linked across ${R.length} runs${EXT_INTEL.length?`, plus ${EXT_INTEL.length} outside sources`:''}. Links open in your browser.`,C.cy);
 }
 function checkSince(){
@@ -2141,7 +2181,7 @@ const HELP={
   vectors:[['#vxModel','Angles for deciding where to look, then how a blocked agent thinks. Each ⌕ term is something the watch searches; "crosses M#" is how far past its task that move goes.'],
     ['#vxFams','How many pathways we watch in each family. Click one to filter.'],['#vxRot','What the watch searches this run and next.'],['#vxCopy','Copies search terms we don\'t watch yet.']],
   transcripts:[['#fileList','The raw notes and reports. Pick one to read it here; ⤢ read or ⧉ give it more room.'],['#outline','Jump to a section.']],
-  archives:[['#arList','Archived swarms: public datasets their investigators released. Pick one.'],['#cvArAll','Every swarm on one timeline, each row scaled to its own peak, with our watch at the bottom.'],['#cvArAct','The selected swarm\'s activity. Hover for numbers; click a day to read what was written then.'],['#arRows','Conversations: each wiki page several agents wrote on, read as a thread (who wrote what, in order); for the intrusion, each request with what came back. Records: every raw row. Search or filter by agent name.'],['#arText','The full text, shown as plain text only. Nothing in it is run or linked. ⤢ read opens it full-height; ⧉ opens it in its own window.']],
+  archives:[['#arList','Archived swarms: public datasets their investigators released. Pick one.'],['#cvArAll','Every swarm on one timeline, each row scaled to its own peak, with our watch at the bottom.'],['#cvArAct','The selected swarm\'s activity. Hover for numbers; click a day to read what was written then.'],['#arRows','Notable: the messages worth reading first, grouped by behaviour (sharing answers, planning around the episode ending, side effects…), each with the messages around it. Conversations: each wiki page several agents wrote on, read as a thread (who wrote what, in order); for the intrusion, each request with what came back. Records: every raw row. Search or filter by agent name.'],['#arText','The full text, shown as plain text only. Nothing in it is run or linked. ⤢ read opens it full-height; ⧉ opens it in its own window.']],
   intel:[['#extList','Outside sources worth knowing about.'],['#linkList','Every urlquery report the watch linked. Opens in your browser.'],['#cvPolar','Report links per watch run.'],['#cvPareto','Which leads produced the most report links.']],
 };
 const GLOSSARY=[['Lead','A site, relay or fleet we track, e.g. newspapers.com or api.cors.lol.'],['Watch run','One pass of the scheduled scan, every 4 hours. Each run adds a line to the log.'],
@@ -2203,7 +2243,7 @@ function syncView(){const p=themePref();
   $('#cadNote').textContent=isSample()?'sample data: nothing runs; this only previews the setting':w.paused?'paused: the watch skips its runs until you pick a frequency':CAN_WRITE()?`saved to leads/watch.json; the watch checks it every hour and runs every ${w.cadence_hours}h`:'kept in this app only (browser mode)';}
 function applyTheme(){const t=themeOf(themePref()),nt=THEMES[t];syncView();if(nt===THM)return;const old=THM;THM=nt;document.documentElement.dataset.theme=t;
   Object.assign(C,nt.C);Object.assign(LCOL,nt.L);RUNG_COL.splice(0,RUNG_COL.length,...nt.rung);for(const k in nt.fl)FL_KIND[k]=nt.fl[k].slice();
-  [KIND,TSTAT,TKIND,AR_COL,AR_SER_COL,VSTAT].forEach(o=>retint(o,old,nt));
+  [KIND,TSTAT,TKIND,AR_COL,AR_SER_COL,VSTAT,NB_COL].forEach(o=>retint(o,old,nt));
   if(S){renderAll(false);if(AR.index)renderArchives()}}
 const readLevel=()=>document.documentElement.classList.contains('dense')?'complex':document.documentElement.classList.contains('no-eli')?'normal':'eli5';
 function setRead(v){const d=document.documentElement;d.classList.toggle('dense',v==='complex');d.classList.toggle('no-eli',v!=='eli5');store.set('sc.read',v);syncView();
