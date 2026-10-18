@@ -510,6 +510,18 @@ html:not(.dense) .arc:not(.on) small{display:none}
 .vxst{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em}
 .vxst button{border:1px solid var(--ln2);padding:2px 8px;color:var(--tx2);font-size:10px;text-transform:uppercase;letter-spacing:.08em}.vxst button.on{color:var(--wh);border-color:var(--ln3);background:rgba(var(--ink),.06)}
 .vxst em{font-style:normal;margin-left:auto;text-transform:none;letter-spacing:0}
+/* ── reader: one message, conversation or document, full height in a ~78-character column; also its own window ── */
+.reader{position:fixed;inset:0;z-index:70;display:none;flex-direction:column;background:var(--bg)}.reader.on{display:flex}
+html.shell-mac:not(.reader-only) .reader{padding-top:30px}html.reader-only #app{display:none}html.reader-only #rdClose,html.reader-only #rdWin{display:none}
+.rdbar{display:flex;align-items:center;gap:10px;padding:10px 18px;border-bottom:1px solid var(--ln);background:var(--pnS)}
+.rdt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.rdt b{color:var(--wh);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rdt span{color:var(--tx3);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rdkeys{color:var(--tx3);font-size:10.5px;white-space:nowrap}
+.rdbar button,.rdbtn{border:1px solid var(--ln2);padding:3px 9px;font-size:10px;color:var(--tx2);text-transform:uppercase;letter-spacing:.08em;font-weight:600;white-space:nowrap}
+.rdbar button:hover,.rdbtn:hover{color:var(--wh);border-color:var(--ln3)}.rdbtns{display:flex;gap:4px;margin-left:8px}
+.rdscroll{flex:1;overflow-y:auto;min-height:0}.rdcol{max-width:78ch;margin:0 auto;padding:18px 24px 72px}
+.rdconv{padding:0}.rdconv .cmt,.rdtext{font-size:13px;line-height:1.7}.rdconv .cmh{font-size:11.5px}
+.rdtext{white-space:pre-wrap;word-break:break-word;font-family:var(--fm);color:var(--tx);margin:0}
+.rdmd{max-width:none;padding:0;font-size:13px}
 /* ── plain-words explanations (View → explanations, or E) ── */
 .eli{font-size:11px;line-height:1.45;color:var(--tx2);padding:0 10px 7px;margin-top:-1px;flex-shrink:0;white-space:normal}
 .eli::before{content:'↳ ';color:var(--tx3)}
@@ -691,7 +703,7 @@ html.no-eli .eli,html.no-eli .eli5{display:none}
       <div class="pnl"><div class="ph"><span>files</span><b>read-only</b></div><div id="fileList"></div></div>
       <div class="pnl f1"><div class="ph"><span>outline</span><b id="olCount">—</b></div><div class="outline scroll f1" id="outline"></div></div>
     </aside>
-    <div class="pnl"><div class="ph"><span id="trPath">—</span><b id="trMeta">—</b></div><div class="scroll f1" id="trScroll"><article class="md" id="trBody"></article></div></div>
+    <div class="pnl"><div class="ph"><span id="trPath">—</span><b id="trMeta">—</b><span class="rdbtns"><button class="rdbtn" id="trRead" title="Read this file full-height">⤢ read</button><button class="rdbtn" id="trWin" title="Open this file in its own window">⧉</button></span></div><div class="scroll f1" id="trScroll"><article class="md" id="trBody"></article></div></div>
   </div>
 </section>
 
@@ -726,7 +738,7 @@ html.no-eli .eli,html.no-eli .eli5{display:none}
           <div class="arfilt"><input id="arSearch" type="search" placeholder="search the text…" autocomplete="off" spellcheck="false"><select id="arFilter"></select><button id="arClear">clear</button></div>
           <div class="scroll f1" id="arRows"></div>
           <div class="pfoot"><span id="arPos">—</span><button id="arMore" class="arbtn">load more</button></div></div>
-        <div class="pnl"><div class="ph"><span id="arMsgTitle">message</span><b id="arMsgTag">plain text · never run</b></div>
+        <div class="pnl"><div class="ph"><span id="arMsgTitle">message</span><b id="arMsgTag">plain text · never run</b><span class="rdbtns"><button class="rdbtn" id="arRead" title="Read it full-height (double-click a row does the same)">⤢ read</button><button class="rdbtn" id="arWin" title="Open it in its own window">⧉</button></span></div>
           <div class="scroll f1"><dl id="arMeta" class="pb kv"></dl><pre id="arText" class="artext">Pick a row to read it.</pre><div id="arConv" class="conv"></div></div></div>
       </div>
     </div>
@@ -743,6 +755,7 @@ html.no-eli .eli,html.no-eli .eli5{display:none}
 
 <div class="toast" id="toast"></div>
 <div class="since" id="since"></div>
+<div class="reader" id="reader"><div class="rdbar"><div class="rdt"><b id="rdTitle">—</b><span id="rdMeta"></span></div><span class="rdkeys">j / k next · previous</span><button id="rdWin" title="Open this in its own window">⧉ new window</button><button id="rdClose" title="Close the reader (Esc)">close · esc</button></div><div class="rdscroll" id="rdScroll"><div class="rdcol" id="rdBody"></div></div></div>
 <div class="ledit" id="leadEd"><form id="leadForm" autocomplete="off" spellcheck="false">
   <b id="leTitle">track a new lead</b>
   <label>name<input name="lname" maxlength="60" placeholder="e.g. some-relay.example"></label>
@@ -1750,7 +1763,7 @@ $('#vxCopy').addEventListener('click',()=>{const t=newScanTerms().join(', '),b=$
 
 /* ═══════════════ 09 archives ═══════════════ */
 // Agent-written and attacker-made text: rendered with textContent only, never as HTML, never linkified.
-const AR={index:null,metas:{},cur:null,chart:'activity',rows:[],pos:{c:0,r:0},done:false,gen:0,pending:false,q:'',filter:'',day:null,sel:null,busy:false,hover:-1,cache:{},err:null,mode:'records',convIdx:{},convList:[],convShown:200,convSel:-1,convN:200};
+const AR={index:null,metas:{},cur:null,chart:'activity',rows:[],pos:{c:0,r:0},done:false,gen:0,pending:false,q:'',filter:'',day:null,sel:null,busy:false,hover:-1,cache:{},err:null,rowFile:[],mode:'records',convIdx:{},convList:[],convShown:200,convSel:-1,convN:200};
 const AR_COL={legit:C.te,replace:C.am,scorer:C.or,hf:C.re,cross:C.cy,h:C.cy,s:C.vi,significant:C.re,suggestive:C.am,deletions:C.re,probes:C.am,reverts:C.cy,dse:C.cy,probier:C.vi,'other wikis':C.te};
 const AR_SER_COL=[C.cy,C.am,C.te,C.vi,C.pk,C.wh];
 const arColor=(s,i)=>AR_COL[s.id]||AR_SER_COL[i%AR_SER_COL.length];
@@ -1787,7 +1800,7 @@ async function arSelect(id,reset=true){
   AR.mode=m.conversations?'conv':'records';$('#arMode').innerHTML=m.conversations?`<button data-m="conv">${m.conversations.kind==='wiki'?'conversations':'exchanges'}</button><button data-m="records">records</button>`:'';
   drawArAll();drawArAct();arReset();
 }
-function arReset(){AR.gen++;AR.rows=[];AR.pos={c:0,r:0};AR.done=false;AR.sel=null;AR.convSel=-1;AR.convShown=200;AR.convList=[];$('#arRows').innerHTML='';$('#arText').textContent='Pick a row to read it.';$('#arMeta').innerHTML='';$('#arConv').innerHTML=AR.mode==='conv'?'<p class="empty">Pick a conversation to read it as a thread: who wrote what, in order.</p>':'';arPanelMode();if(AR.mode==='conv'){arConvList();return}arMoreRows()}
+function arReset(){AR.gen++;AR.rows=[];AR.rowFile=[];AR.pos={c:0,r:0};AR.done=false;AR.sel=null;AR.convSel=-1;AR.convShown=200;AR.convList=[];$('#arRows').innerHTML='';$('#arText').textContent='Pick a row to read it.';$('#arMeta').innerHTML='';$('#arConv').innerHTML=AR.mode==='conv'?'<p class="empty">Pick a conversation to read it as a thread: who wrote what, in order.</p>':'';arPanelMode();if(AR.mode==='conv'){arConvList();return}arMoreRows()}
 function arMatch(m,row){if(AR.filter&&String(row[m.filter.field])!==AR.filter)return false;if(AR.day&&!(row[0]||'').startsWith(AR.day))return false;
   if(AR.q){const q=AR.q;return (row[4]||'').toLowerCase().includes(q)||(row[1]||'').toLowerCase().includes(q)||(row[2]||'').toLowerCase().includes(q)}return true}
 async function arMoreRows(){
@@ -1797,7 +1810,7 @@ async function arMoreRows(){
   try{while(AR.rows.length<want&&AR.pos.c<m.chunks.length){const ch=m.chunks[AR.pos.c];
       if(AR.day&&ch.t0&&ch.t1&&(AR.day<ch.t0.slice(0,10)||AR.day>ch.t1.slice(0,10))){AR.pos={c:AR.pos.c+1,r:0};continue}
       const rows=await arChunk(id,ch.file);if(gen!==AR.gen||AR.cur!==id){stale=true;break}
-      let r=AR.pos.r;for(;r<rows.length&&AR.rows.length<want;r++)if(arMatch(m,rows[r]))AR.rows.push(rows[r]);
+      let r=AR.pos.r;for(;r<rows.length&&AR.rows.length<want;r++)if(arMatch(m,rows[r])){AR.rows.push(rows[r]);AR.rowFile.push(ch.file)}
       AR.pos=r>=rows.length?{c:AR.pos.c+1,r:0}:{c:AR.pos.c,r};
       $('#arPos').textContent=`searched ${Math.min(AR.pos.c+1,m.chunks.length)} of ${m.chunks.length} parts`}
     if(!stale&&AR.pos.c>=m.chunks.length)AR.done=true;
@@ -1907,16 +1920,52 @@ async function arConvOpen(i){const c=AR.convList[i];if(!c)return;AR.convSel=i;$$
   try{chunk=await arChunk(id,c.file)}catch(e){box.textContent='could not read this conversation';return}if(AR.cur!==id||AR.convSel!==i)return;
   $('#arMsgTitle').textContent=wiki?`${c.wiki}/${c.page}`:'request → what came back';
   $('#arMeta').innerHTML=[[wiki?'page':'request',c.page],[wiki?'agents':'replies',wiki?`${c.agents}: ${c.a.slice(0,6).join(', ')}${c.a.length>6?' …':''}`:c.replies],['messages',c.n.toLocaleString()],['span',c.t0?`${stamp(c.t0)} → ${stamp(c.t1)}${zs()}`:'untimed']].map(([k,v])=>`<dt>${esc(k)}</dt><dd title="${esc(v)}">${esc(v)}</dd>`).join('');
-  AR.convN=200;arConvMsgs(box,chunk[c.k]||[],wiki);box.parentElement.scrollTop=0}
+  AR.convState={n:200};arConvMsgs(box,chunk[c.k]||[],wiki,AR.convState);box.parentElement.scrollTop=0}
 // agent-written text: built with textContent only, never parsed as HTML, never linked
-function arConvMsgs(box,msgs,wiki){box.innerHTML='';const n=Math.min(msgs.length,AR.convN);let prev=null;
+function arConvMsgs(box,msgs,wiki,st){box.innerHTML='';const n=Math.min(msgs.length,st.n);let prev=null;
   for(let k=0;k<n;k++){const [t,who,verb,text,removed,summ,,human]=msgs[k],el=document.createElement('div'),h=document.createElement('div');el.className='cm'+(prev===who?' same':'');h.className='cmh';
     const col=wiki?agentCol(who):who==='agent'?C.am:who==='service'?C.cy:C.tx2,add=(cls,txt,tag)=>{const s=document.createElement(tag||'span');s.className=cls;s.textContent=txt;h.appendChild(s);return s};
     add('t',t?stamp(t)+zs():'');add('who',who,'b').style.color=col;add('v',verb);if(summ)add('s','“'+summ+'”');if(removed)add('rm',`−${removed} line${removed>1?'s':''}`);if(human)add('hu','human handle');el.appendChild(h);
     if(text){const p=document.createElement('pre');p.className='cmt';p.style.setProperty('--cmc',col);p.textContent=text;el.appendChild(p)}
     box.appendChild(el);prev=who}
-  if(msgs.length>n){const b=document.createElement('button');b.className='arbtn cmore';b.textContent=`show ${Math.min(200,msgs.length-n)} more (${(msgs.length-n).toLocaleString()} left)`;b.onclick=()=>{AR.convN+=200;arConvMsgs(box,msgs,wiki)};box.appendChild(b)}}
+  if(msgs.length>n){const b=document.createElement('button');b.className='arbtn cmore';b.textContent=`show ${Math.min(200,msgs.length-n)} more (${(msgs.length-n).toLocaleString()} left)`;b.onclick=()=>{st.n+=box===$('#arConv')?200:400;arConvMsgs(box,msgs,wiki,st)};box.appendChild(b)}}
 $('#arMode').addEventListener('click',e=>{const b=e.target.closest('button[data-m]');if(!b||b.dataset.m===AR.mode)return;AR.mode=b.dataset.m;arReset()});
+
+/* ── reader: full-height view of a conversation, record or document, with its own address (#read=…) for a new window ── */
+const READER_ONLY=/^#read=/.test(location.hash);if(READER_ONLY)document.documentElement.classList.add('reader-only');
+const RD={route:null,state:{n:400}};
+function openReader(route,inWindow){if(!route){toast('nothing picked','Pick a conversation, record or file first.');return}
+  if(inWindow){window.open(location.pathname+'#read='+route,'_blank');return}
+  RD.route=route;$('#reader').classList.add('on');renderReader(route)}
+function closeReader(){if(READER_ONLY)return;$('#reader').classList.remove('on');RD.route=null}
+// the route of whatever the panels show now
+function arRoute(){if(AR.mode==='conv'){const c=AR.convList[AR.convSel];return c?`conv/${encodeURIComponent(AR.cur)}/${encodeURIComponent(c.k)}`:null}
+  const r=AR.rows[AR.sel],f=AR.rowFile[AR.sel];return r&&f?`rec/${encodeURIComponent(AR.cur)}/${encodeURIComponent(f)}/${encodeURIComponent(r[5])}`:null}
+async function renderReader(route){const [kind,a,b,c]=route.split('/').map(decodeURIComponent),body=$('#rdBody'),title=$('#rdTitle'),meta=$('#rdMeta');
+  body.innerHTML='<p class="empty">loading…</p>';
+  try{
+    if(kind==='conv'){const m=AR.metas[a]||await arMeta(a),cv=(await arConvIndex(a)).find(x=>x.k===b);if(!cv)throw new Error('not found');
+      const msgs=(await arChunk(a,cv.file))[cv.k]||[],wiki=m.conversations.kind==='wiki';
+      title.textContent=wiki?`${cv.wiki}/${cv.page}`:`request → what came back · ${cv.page}`;
+      meta.textContent=`${m.title} · ${wiki?cv.agents+' agents · ':''}${cv.n.toLocaleString()} messages${cv.t0?` · ${stamp(cv.t0)} → ${stamp(cv.t1)}${zs()}`:''}`;
+      body.innerHTML='';const box=document.createElement('div');box.className='conv rdconv';body.appendChild(box);RD.state={n:400};arConvMsgs(box,msgs,wiki,RD.state)}
+    else if(kind==='rec'){const m=AR.metas[a]||await arMeta(a),r=(await arChunk(a,b)).find(x=>String(x[5])===c);if(!r)throw new Error('not found');
+      title.textContent=`${r[3]||'record'} · ${r[5]||''}`;meta.textContent=`${m.title} · ${r[0]?stamp(r[0])+zs():'no time'} · ${r[2]||r[1]||''}`;
+      body.innerHTML='';const p=document.createElement('pre');p.className='rdtext';p.textContent=r[4]||'(empty)';body.appendChild(p)}
+    else if(kind==='doc'){const f=FILES.find(x=>x.k===a);if(!f)throw new Error('not found');const r=await fetch('../'+f.path,{cache:'no-store'});if(!r.ok)throw new Error('unreadable');
+      const txt=await r.text();title.textContent=f.path;meta.textContent=`${(txt.length/1024).toFixed(1)} kb · ${txt.split('\n').length} lines`;body.innerHTML=`<article class="md rdmd">${mdRender(txt).html}</article>`}
+    else throw new Error('unknown');
+  }catch(e){body.innerHTML='<p class="empty">Couldn\'t open this here. The archive may not be built, or the file moved.</p>';title.textContent='not found';meta.textContent=''}
+  $('#rdScroll').scrollTop=0;if(READER_ONLY)document.title=`${title.textContent} · SwarmChaser`}
+// j / k: next or previous message or heading
+function rdStep(dir){const sc=$('#rdScroll'),top=sc.getBoundingClientRect().top,items=$$('#rdBody .cm:not(.same), #rdBody h1, #rdBody h2, #rdBody h3');if(!items.length)return;
+  const pos=items.map(el=>el.getBoundingClientRect().top-top),i=dir>0?pos.findIndex(p=>p>8):pos.map((p,k)=>[p,k]).filter(([p])=>p<-8).map(([,k])=>k).pop();
+  const el=items[i==null||i<0?(dir>0?items.length-1:0):i];sc.scrollTop+=el.getBoundingClientRect().top-top-6}
+$('#rdClose').addEventListener('click',closeReader);
+$('#rdWin').addEventListener('click',()=>{const r=RD.route;closeReader();openReader(r,true)});
+$('#arRead').addEventListener('click',()=>openReader(arRoute()));$('#arWin').addEventListener('click',()=>openReader(arRoute(),true));
+$('#trRead').addEventListener('click',()=>openReader(`doc/${TR_CUR}`));$('#trWin').addEventListener('click',()=>openReader(`doc/${TR_CUR}`,true));
+$('#arRows').addEventListener('dblclick',e=>{if(e.target.closest('.arr'))setTimeout(()=>openReader(arRoute()),60)});
 
 /* ═══════════════ 07 transcripts ═══════════════ */
 function mdRender(src){
@@ -2091,8 +2140,8 @@ const HELP={
   threads:[['#thList','Storylines we follow. The number is the triage score out of 20.'],['#thDetail','The story so far, its timeline, and what would prove it wrong.'],['#thRubric','The dossier\'s 10-question checklist, 0–2 points each. Hover a row to see what earns points.']],
   vectors:[['#vxModel','Angles for deciding where to look, then how a blocked agent thinks. Each ⌕ term is something the watch searches; "crosses M#" is how far past its task that move goes.'],
     ['#vxFams','How many pathways we watch in each family. Click one to filter.'],['#vxRot','What the watch searches this run and next.'],['#vxCopy','Copies search terms we don\'t watch yet.']],
-  transcripts:[['#fileList','The raw notes and reports. Pick one to read it here.'],['#outline','Jump to a section.']],
-  archives:[['#arList','Archived swarms: public datasets their investigators released. Pick one.'],['#cvArAll','Every swarm on one timeline, each row scaled to its own peak, with our watch at the bottom.'],['#cvArAct','The selected swarm\'s activity. Hover for numbers; click a day to read what was written then.'],['#arRows','Conversations: each wiki page several agents wrote on, read as a thread (who wrote what, in order); for the intrusion, each request with what came back. Records: every raw row. Search or filter by agent name.'],['#arText','The full text, shown as plain text only. Nothing in it is run or linked.']],
+  transcripts:[['#fileList','The raw notes and reports. Pick one to read it here; ⤢ read or ⧉ give it more room.'],['#outline','Jump to a section.']],
+  archives:[['#arList','Archived swarms: public datasets their investigators released. Pick one.'],['#cvArAll','Every swarm on one timeline, each row scaled to its own peak, with our watch at the bottom.'],['#cvArAct','The selected swarm\'s activity. Hover for numbers; click a day to read what was written then.'],['#arRows','Conversations: each wiki page several agents wrote on, read as a thread (who wrote what, in order); for the intrusion, each request with what came back. Records: every raw row. Search or filter by agent name.'],['#arText','The full text, shown as plain text only. Nothing in it is run or linked. ⤢ read opens it full-height; ⧉ opens it in its own window.']],
   intel:[['#extList','Outside sources worth knowing about.'],['#linkList','Every urlquery report the watch linked. Opens in your browser.'],['#cvPolar','Report links per watch run.'],['#cvPareto','Which leads produced the most report links.']],
 };
 const GLOSSARY=[['Lead','A site, relay or fleet we track, e.g. newspapers.com or api.cors.lol.'],['Watch run','One pass of the scheduled scan, every 4 hours. Each run adds a line to the log.'],
@@ -2206,6 +2255,7 @@ $('#selOpen').addEventListener('click',e=>{const run=e.currentTarget.dataset.run
 $('#fileList').addEventListener('click',e=>{const f=e.target.closest('.file');if(f)loadTranscript(f.dataset.k)});
 $('#outline').addEventListener('click',e=>{const a=e.target.closest('a[data-h]');if(!a)return;e.preventDefault();const el=document.getElementById(a.dataset.h);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})});
 document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.altKey&&e.key!=='?'||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
+  if($('#reader').classList.contains('on')){if(e.key==='Escape')closeReader();else if(e.key==='j'||e.key==='k'){e.preventDefault();rdStep(e.key==='j'?1:-1)}return}
   if(e.key==='?'){toggleHelp();return}
   if(/^[1-9]$/.test(e.key))setTab(TABS[+e.key-1]);else if(e.key==='r')refresh(true);
   else if(e.key==='t')$('#hBtn').click();else if(e.key==='e'){const o=['eli5','normal','complex'];setRead(o[(o.indexOf(readLevel())+1)%3])}else if(e.key==='v')$('#viewBtn').click();else if(e.key==='f')triggerFlash('activity',['newspapers_com']);
@@ -2225,6 +2275,7 @@ setInterval(()=>{if(S){renderChrome();briefs();if(curTab==='interp')renderInterp
 // boot
 window.SC={refresh:()=>refresh(true),setTab,runScan,leadsSaved,watchSaved,flash:k=>triggerFlash(k||'activity',[])};
 (async()=>{
+  if(READER_ONLY){applyTheme();$('#reader').classList.add('on');RD.route=location.hash.slice(6);renderReader(RD.route);return}
   let auto=IS_APP;{const v=store.get('sc.auto');if(v!=null)auto=v==='1'}
   let tab=(location.hash||'').slice(1);if(!$('#pane-'+tab))tab=store.get('sc.tab')||'overview';
   await Promise.all([loadData(),loadInterp(),loadThreads(),loadVectors(),loadWatchlist(),loadLeads(),loadWatchCfg()]);injectEli();applyTheme();retime();renderAll(true);setTab(tab);setAuto(auto);checkSince();requestAnimationFrame(loop);

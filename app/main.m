@@ -93,6 +93,7 @@ static NSString *const kScheme = @"swarm";
 @property (strong) LocalScheme *scheme;
 @property (copy) NSURL *projectRoot;
 @property BOOL leadsWritable;
+@property (strong) NSMutableArray<NSWindow *> *readers;  // reader windows opened from the page
 @property (copy) NSString *snapshotPath, *snapshotTab, *snapshotTheme, *snapshotDetail;
 @property NSSize snapshotSize;
 @end
@@ -302,8 +303,41 @@ typedef NS_ENUM(NSInteger, SCLinkPolicy) { SCLinkOpen, SCLinkAsk, SCLinkBlock };
 - (WKWebView *)webView:(WKWebView *)webView createWebViewWithConfiguration:(WKWebViewConfiguration *)configuration
     forNavigationAction:(WKNavigationAction *)action windowFeatures:(WKWindowFeatures *)features {
     NSString *s = action.request.URL.scheme.lowercaseString;
+    // the page's own reader (swarm://…#read=…) may open in a window of its own; nothing else gets a new web view
+    if ([s isEqualToString:kScheme] && [action.request.URL.fragment hasPrefix:@"read="]) return [self openReaderWindow:configuration];
     if ([s isEqualToString:@"http"] || [s isEqualToString:@"https"]) [self openExternal:action.request.URL confirmed:NO];
     return nil;  // target=_blank links go through the link policy to the default browser, never a new web view
+}
+
+- (WKWebView *)openReaderWindow:(WKWebViewConfiguration *)configuration {
+    NSRect vis = (self.window.screen ?: NSScreen.mainScreen).visibleFrame;
+    NSWindow *w = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, 940, MIN(1040, NSHeight(vis) - 80))
+                                              styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable | NSWindowStyleMaskMiniaturizable | NSWindowStyleMaskResizable
+                                                backing:NSBackingStoreBuffered defer:NO];
+    w.title = @"SwarmChaser · reader";
+    w.releasedWhenClosed = NO;
+    w.minSize = NSMakeSize(520, 400);
+    w.backgroundColor = self.window.backgroundColor;
+    w.appearance = self.window.appearance;
+    WKWebView *v = [[WKWebView alloc] initWithFrame:w.contentView.bounds configuration:configuration];
+    v.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
+    [v setValue:@NO forKey:@"drawsBackground"];
+    v.navigationDelegate = self;
+    v.UIDelegate = self;
+    v.inspectable = YES;
+    [w.contentView addSubview:v];
+    NSPoint tl = NSMakePoint(NSMinX(self.window.frame) + 40 + 24 * (CGFloat)(self.readers.count % 6), NSMaxY(self.window.frame) - 40 - 24 * (CGFloat)(self.readers.count % 6));
+    [w setFrameTopLeftPoint:tl];
+    if (!self.readers) self.readers = [NSMutableArray array];
+    [self.readers addObject:w];
+    __weak NSWindow *weak = w;
+    __block id token = [[NSNotificationCenter defaultCenter] addObserverForName:NSWindowWillCloseNotification object:w queue:nil usingBlock:^(NSNotification *n) {
+        if (weak) [self.readers removeObject:weak];
+        [[NSNotificationCenter defaultCenter] removeObserver:token];
+    }];
+    if (self.snapshotPath) [w orderFrontRegardless];  // headless checks: render it, but never take focus
+    else [w makeKeyAndOrderFront:nil];
+    return v;  // WebKit loads the reader's address into it
 }
 
 - (void)webView:(WKWebView *)webView didFinishNavigation:(WKNavigation *)navigation {
@@ -371,6 +405,7 @@ typedef NS_ENUM(NSInteger, SCLinkPolicy) { SCLinkOpen, SCLinkAsk, SCLinkBlock };
     if ([pref isEqualToString:@"light"]) self.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
     else if ([pref isEqualToString:@"dark"]) self.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
     else self.window.appearance = nil;  // follow macOS
+    for (NSWindow *w in self.readers) w.appearance = self.window.appearance;
 }
 
 #pragma mark data files the app writes (leads/leads.json, leads/watch.json; nothing else)
