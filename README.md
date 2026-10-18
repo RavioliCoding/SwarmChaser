@@ -15,7 +15,7 @@ It reads data that *you* produce (a JSONL log of observations) and turns it into
 open SwarmChaser.app
 ```
 
-Requires the Xcode Command Line Tools (`xcode-select --install`). The app bundles the sample dataset, so it works the moment it opens.
+Requires macOS 13.3 or later and the Xcode Command Line Tools (`xcode-select --install`). The app bundles the sample dataset, so it works the moment it opens.
 
 **Option B — in a browser:**
 

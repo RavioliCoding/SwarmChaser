@@ -172,7 +172,7 @@ static NSString *const kScheme = @"swarm";
     [self.web setValue:@NO forKey:@"drawsBackground"];  // no white flash before the page paints
     self.web.navigationDelegate = self;
     self.web.UIDelegate = self;
-    if (@available(macOS 13.3, *)) self.web.inspectable = YES;
+    self.web.inspectable = YES;
     double zoom = [[NSUserDefaults standardUserDefaults] doubleForKey:@"SCZoom"];
     if (zoom >= 0.7 && zoom <= 1.8) self.web.pageZoom = zoom;
     [content addSubview:self.web];

@@ -967,11 +967,10 @@ function drawGauge(){
 }
 
 /* ── constellation (overview hero) ── */
-const K={c:null,w:0,h:0,lobes:[],dust:null,dend:[],pk:[],rot:{yaw:.6,pitch:-.32},rt:{yaw:.6,pitch:-.32},drag:null,_dragged:false,focus:null,hover:null,mx:-1e4,my:-1e4,inside:false,reuse:0,newRelay:{},scanT0:-1e9,scanGaze:0,scanN:0};
+const K={c:null,w:0,h:0,lobes:[],dust:null,dend:[],rot:{yaw:.6,pitch:-.32},rt:{yaw:.6,pitch:-.32},drag:null,_dragged:false,focus:null,hover:null,mx:-1e4,my:-1e4,inside:false,reuse:0,newRelay:{},scanT0:-1e9};
 const LPOS={newspapers_com:[-.6,-.12],pastehtml_carrier:[-.16,-.62],jina_relay:[.36,-.58],cors_lol_relay:[.68,.04],amap_fleet:[.4,.62],generic_carriers:[-.2,.66]};
 const LTAGS={newspapers_com:['/api/search/hits','page 151032709','page 648915976','callback=alert'],pastehtml_carrier:['32-char subdomains','×20 throwaway pages'],jina_relay:['x=2000…2014','21 parallel scans'],
   cors_lol_relay:['hetzner 195.201.220.186','_cb= retries'],amap_fleet:['uqframe=claude20261004b','AS132203 tencent'],generic_carriers:['httpbin','allorigins','workers.dev']};
-const TANG_L=[2.55,.5,-.62,1.55],TANG_R=[2.55,.5,-2.55,1.55];
 function buildConst(){
   seed=7;const L0=S.R[0],N=LEADS.length;
   K.lobes=LEADS.map((id,i)=>{
@@ -1006,47 +1005,14 @@ function buildConst(){
   for(let p=0;p<ND;p++){const u=rnd()*2-1,a=rnd()*6.283,rr=Math.sqrt(Math.max(0,1-u*u));K.dust[p*3]=Math.cos(a)*rr;K.dust[p*3+1]=u;K.dust[p*3+2]=Math.sin(a)*rr}
   K.dend=[];for(let k=0;k<20;k++){const a=k/20*6.283+(rnd()-.5)*.1,cr=Math.cos(-.35),sr=Math.sin(-.35),x0=Math.cos(a)*19*.98,y0=Math.sin(a)*13*.98,rx=x0*cr-y0*sr,ry=x0*sr+y0*cr,ang=Math.atan2(ry,rx);
     const L1=8+rnd()*6,L2=7+rnd()*6,b=(rnd()<.5?1:-1)*(.18+rnd()*.15),kx=rx+Math.cos(ang+b)*L1,ky=ry+Math.sin(ang+b)*L1,tx=kx+Math.cos(ang-b*.5)*L2,ty=ky+Math.sin(ang-b*.5)*L2;
-    K.dend.push({p:[[rx,ry],[kx,ky],[tx,ty]],f:null})}
-  K.pk=LEADS.map(()=>({t:rnd(),s:.0016+rnd()*.0022}));
+    K.dend.push({p:[[rx,ry],[kx,ky],[tx,ty]]})}
   if(K.focus&&!K.lobes.find(l=>l.id===K.focus))unfocus();else if(K.focus)showFocus(K.focus);
 }
 
-const tagAlign=a=>Math.cos(a)<-.25?-1:Math.cos(a)>.25?1:0;
-const tagCount=L=>K.focus===L.id?L.tags.length:Math.min(L.tags.length,3);
-const CAND=[2.55,.5,-.62,1.55,-2.55,0,3.14,-1.57,2.0,1.1,-1.1,-2.0];
-// Places reuse badge + lobe tags in the first spot that overlaps no label, tag or HUD text.
-// Lobes move together (drift/parallax), so this only reruns on resize or focus change.
-function layoutTags(c,w,h){
-  const z=K.cam.z,sc=Math.max(.62,Math.min(1.3,Math.min(w/1000,h/560))),cx=w/2,cy=h/2+14,s=sc*z,P=(X,Y)=>[cx+(X-K.cam.x)*z,cy+(Y-K.cam.y)*z];
-  const rects=[{x:0,y:0,w:340,h:80},{x:w-600,y:0,w:600,h:34},{x:w-480,y:h-26,w:480,h:26}];
-  const ov=r=>r.x<6||r.y<6||r.x+r.w>w-6||r.y+r.h>h-6||rects.some(q=>r.x<q.x+q.w+4&&r.x+r.w+4>q.x&&r.y<q.y+q.h+4&&r.y+r.h+4>q.y);
-  const hub=P(0,0);rects.push({x:hub[0]-72*s,y:hub[1]-62*s,w:144*s,h:124*s});
-  c.font=font(500,10);rects.push({x:hub[0]+24*s,y:hub[1]+36*s-12,w:c.measureText(`run 6 · 13 searches · ${TF.h12?'12:13 PM UTC':'20:13z'}`).width,h:30});
-  {const a=$('#heroOv .chap'),hr=$('#heroOv').getBoundingClientRect();if(a){const ar=a.getBoundingClientRect();rects.push({x:ar.left-hr.left,y:ar.top-hr.top,w:ar.width+20,h:ar.height+8})}}
-  const pos={};
-  K.lobes.forEach(L=>{const [px,py]=LPOS[L.id],[x,y]=P(px*w*.42,py*h*.40);pos[L.id]={x,y,r:L.rad*s}});
-  // lobe labels: preferred side first, then the other side, then below
-  K.lab={};
-  [...K.lobes].sort((a,b)=>b.n-a.n).forEach(L=>{const p=pos[L.id],r=p.r,pref=LPOS[L.id][0]<0?-1:1;
-    c.font=font(800,K.focus===L.id?14:12.5);let lw=c.measureText(LNAME[L.id]).width;c.font=font(500,10);lw=Math.max(lw,c.measureText(`${L.st} · ${L.tot.rows} scans · 00h 00m ago`).width);
-    const lh=K.newRelay[L.id]?50:30,cand=[[pref,-1],[-pref,-1],[pref,1],[-pref,1]].map(([sx,sy])=>{const lx=p.x+sx*r*.4,ly=sy<0?p.y-r*.92:p.y+r*.98+12;return {sx,lx,ly,rect:{x:sx<0?lx-lw:lx,y:ly-13,w:lw,h:lh}}});
-    const pick=cand.find(q=>!ov(q.rect))||cand[0];K.lab[L.id]={dx:pick.lx-p.x,dy:pick.ly-p.y,sx:pick.sx,r};rects.push(pick.rect)});
-  if(K.reuse){const p=pos.newspapers_com;c.font=font(700,9.5);const rw=c.measureText(`↻ cross-run reuse ×${K.reuse}`).width+12,rh=16;
-    const cand=[[-p.r*1.2-rw-4,-8],[-rw/2,p.r*.88+6],[-rw/2,-p.r*.88-rh-4],[p.r*1.2+4,-8],[-p.r*.9-rw,p.r*.62]];
-    let pick=cand[0];for(const [dx,dy] of cand)if(!ov({x:p.x+dx,y:p.y+dy,w:rw,h:rh})){pick=[dx,dy];break}
-    K.reuseOff=pick;K.reuseR=p.r;rects.push({x:p.x+pick[0],y:p.y+pick[1],w:rw,h:rh})}
-  c.font=font(500,9.5);
-  [...K.lobes].sort((a,b)=>(b.mov-a.mov)||(b.n-a.n)).forEach(L=>{const p=pos[L.id],TA=LPOS[L.id][0]<0?TANG_L:TANG_R;
-    L.tags.slice(0,tagCount(L)).forEach((T,k)=>{const tw=c.measureText(T.t).width+10,th=15,box=(a,d)=>{const bx=p.x+Math.cos(a)*p.r*d,by=p.y+Math.sin(a)*p.r*d,al=tagAlign(a);return {x:al<0?bx-tw:al>0?bx:bx-tw/2,y:by-th/2,w:tw,h:th}};
-      let best=null;
-      search:for(const d of [1.15,1.45,1.75])for(const a of [TA[k%4],...CAND]){const r=box(a,d);if(!ov(r)){best={a,d,r};break search}}
-      if(!best)best={a:TA[k%4],d:1.2,r:box(TA[k%4],1.2)};
-      T.a=best.a;T.d=best.d;rects.push(best.r)})});
-}
 const CPROJ={D:3.2},NEB=.64,CLOUD_K=1.5,SCAN_STEP=1300;
 const dimOfG=L=>K.focus&&K.focus!==L.id?.35:1;
 // the watch crawls one nebula: it travels lobe to lobe on a curved path, reads each lobe (tags pop out), and leaves a trail
-const SP={pos:[0,0,0],a:[0,0,0],b:[0,0,0],m:[0,0,0],t0:0,dur:1,tgt:-1,mode:'idle',readT0:0,readDur:3400,trail:[],visited:new Set(),scanLeft:0,lastScan:-1e9,userT:-1e9,k:0,tent:[]};
+const SP={pos:[0,0,0],a:[0,0,0],b:[0,0,0],m:[0,0,0],t0:0,dur:1,tgt:-1,mode:'idle',readT0:0,readDur:3400,trail:[],visited:new Set(),scanLeft:0,lastScan:-1e9,userT:-1e9,k:0};
 // the words a lobe gives up when read, each pinned to a spot spread around the lobe
 function tagItems(L){return [...L.tags,`${L.tot.rows} scans`,`${L.tot.links} report links`,`status → ${L.st}`,L.tot.newest?`seen ${ago(L.tot.newest)}`:null].filter(Boolean)}
 function tagAnchor(L,k,n){const np=L.pts.length/4,want=k/n*6.283+L.i;let best=0,bs=-1e9;
@@ -1070,19 +1036,6 @@ function drawTagLinks(c,L,bx,by,amount,s,cur,t){
       c.fillStyle=on?ink(.85):paper(.88);c.fillRect(rx,ry,tw,14);c.strokeStyle=ink(on?.9:.7);c.lineWidth=.8;c.strokeRect(rx+.5,ry+.5,tw-1,13);
       c.fillStyle=on?paper(1):ink(.95);c.fillText(tx,rx+5,ry+10.5)}}
   c.globalAlpha=1}
-// (older free-gripping tentacles, no longer drawn)
-function tentReach(li,t,n,stagger){const L=K.lobes[li];if(!L)return;const np=L.pts.length/4;
-  for(let k=0;k<n;k++){let q=0,bd=-1;for(let j=0;j<6;j++){const c2=(Math.random()*np|0)*4,d=Math.hypot(L.pts[c2],L.pts[c2+1]);if(d>bd){bd=d;q=c2}}
-    SP.tent.push({li,q,t0:t+k*stagger,rel:null,relU:null})}}
-function drawTentacles(c,bx,by,s,t,scanning){
-  for(let k=0;k<SP.tent.length;k++){const T=SP.tent[k],L=K.lobes[T.li];if(!L||t<T.t0||T.q>=L.pts.length)continue;
-    const ca=Math.cos(L.ang),sa=Math.sin(L.ang),sc=L.sr/L.rad,px=L.pts[T.q]*ca-L.pts[T.q+1]*sa,py=L.pts[T.q]*sa+L.pts[T.q+1]*ca,ax=L.sx+px*sc,ay=L.sy+py*sc;
-    let f=Math.min(1,(t-T.t0)/320);if(T.rel!==null)f=Math.max(0,1-(t-T.rel)/280);f=f*f*(3-2*f);
-    const tx=bx+(ax-bx)*f,ty=by+(ay-by)*f,dx=tx-bx,dy=ty-by;if(Math.hypot(dx,dy)<2)continue;
-    const w=Math.sin(t*.004+k*1.7)*.22+(T.rel!==null?.18:0),mx=bx+dx*.5-dy*w,my=by+dy*.5+dx*w;
-    c.strokeStyle=scanning?rgba(C.am,.75):ink(.62);c.lineWidth=Math.max(.7,1.1*s);c.beginPath();c.moveTo(bx,by);c.quadraticCurveTo(mx,my,tx,ty);c.stroke();
-    c.fillStyle=scanning?C.am:ink(.95);c.beginPath();c.arc(tx,ty,Math.max(1.6,2.2*s),0,6.283);c.fill()}
-}
 function spWaypoint(k){return k<0||!K.lobes[k]?[0,0,0]:K.lobes[k].p3.map(v=>v*NEB)}
 function spGo(k,t,fast){const b=spWaypoint(k);SP.a=SP.pos.slice();SP.b=b;
   const mid=[0,1,2].map(i=>(SP.a[i]+b[i])/2),ml=Math.hypot(mid[0],mid[1],mid[2]),d=Math.hypot(b[0]-SP.a[0],b[1]-SP.a[1],b[2]-SP.a[2]);
@@ -1093,7 +1046,7 @@ function spUpdate(t){
   if(!K.lobes.length||!K.ring)return;
   if(K.scanT0>SP.lastScan){SP.lastScan=K.scanT0;SP.scanLeft=K.lobes.length;SP.visited.clear();if(SP.mode==='read')SP.readDur=0}
   const scanning=SP.scanLeft>0,fi=K.focus?K.lobes.findIndex(l=>l.id===K.focus):-1;
-  if(SP.mode==='idle'){SP.tent=[];spGo(fi>=0?fi:K.ring[0],t,scanning);return}
+  if(SP.mode==='idle'){spGo(fi>=0?fi:K.ring[0],t,scanning);return}
   if(fi>=0&&SP.tgt!==fi){spGo(fi,t,false);return}
   if(SP.mode==='travel'){const u=Math.min(1,(t-SP.t0)/SP.dur),e0=u*u*(3-2*u),e=e0-Math.sin(6*Math.PI*e0)/(6*Math.PI)*.85;SP.pos=spPos(e);
     SP.e=e;SP.trail.push(SP.pos.slice());if(SP.trail.length>170)SP.trail.shift();
@@ -1114,7 +1067,6 @@ function drawCrawler(c,x,y,s,t,reading,scanning){
   const mv=SP.mode==='travel';
   K.dend.forEach((Dd,i)=>{const th=(mv?.16:.05)*Math.sin(t*(mv?.012:.004)+i*.9),co=Math.cos(th),si=Math.sin(th),R=q=>[(q[0]*co-q[1]*si)*s,(q[0]*si+q[1]*co)*s];
     let q=R(Dd.p[0]);c.beginPath();c.moveTo(q[0],q[1]);for(const pt of Dd.p){q=R(pt);c.lineTo(q[0],q[1])}c.stroke();
-    if(Dd.f){const a=R(Dd.f[0]),b=R(Dd.f[1]);c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke()}
     const e=R(Dd.p[Dd.p.length-1]);c.fillStyle=ink(.75+.25*pulse);c.beginPath();c.arc(e[0],e[1],Math.max(1.2,1.5*s),0,6.283);c.fill()});
   c.rotate(-.35);c.fillStyle=paper(.94);c.beginPath();c.ellipse(0,0,19*s,13*s,0,0,6.283);c.fill();
   c.save();c.clip();c.fillStyle=ink(.28);const st=Math.max(2.2,3*s);for(let gy=-13*s,r=0;gy<13*s;gy+=st,r++)for(let gx=-19*s+(r%2?st/2:0);gx<19*s;gx+=st)c.fillRect(gx,gy,.9,.9);c.restore();   // fine dotted mesh
@@ -1124,23 +1076,6 @@ function drawCrawler(c,x,y,s,t,reading,scanning){
   const L0=S.R[0];c.textAlign='left';c.textBaseline='alphabetic';c.globalAlpha=dm;
   c.font=font(700,10.5);c.fillStyle=C.tx2;c.fillText(scanning?'watch · scanning…':'watch',x+24*s,y+30*s);K.crLab={x:x+24*s-4,y:y+30*s-12,w:120,h:16};c.globalAlpha=1;
 }
-// while reading a lobe, its words pop out one by one, each tied to a point in the cloud
-function drawReadTags(c,L,x,y,p,s){
-  const items=[...L.tags,`${L.tot.rows} scans`,`${L.tot.links} report links`,`status · ${L.st}`,L.tot.newest?`last seen ${ago(L.tot.newest)}`:null].filter(Boolean);
-  const n=items.length,sc=L.sr/L.rad,P=L.pts,np=P.length/4,ca=Math.cos(L.ang),sa=Math.sin(L.ang);
-  c.font=font(500,9.5);c.textBaseline='alphabetic';c.textAlign='left';
-  items.forEach((tx,k)=>{const show=Math.max(0,Math.min(1,(p*(n+1)-k)*1.5));if(show<=0)return;
-    const side=k%2?-1:1,row=Math.floor(k/2),rows=Math.ceil(n/2),bx=x+side*(54*s+row*7*s),by=y+(row-(rows-1)/2)*20*Math.max(.8,s)+(side<0?9:0);
-    const tw=c.measureText(tx).width+10,rx=side>0?bx:bx-tw,ry=by-10;
-    const q=((k*131+7)%np)*4,px=P[q]*ca-P[q+1]*sa,py=P[q]*sa+P[q+1]*ca,ax=L.sx+px*sc*.8,ay=L.sy+py*sc*.8;
-    c.globalAlpha=show;
-    {const ex=side>0?rx:rx+tw,ey=by-3,ddx=ex-x,ddy=ey-y,ww=.2*side;c.strokeStyle=ink(.55);c.lineWidth=Math.max(.7,1*s);c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(x+ddx*.5-ddy*ww,y+ddy*.5+ddx*ww,ex,ey);c.stroke()}
-    c.strokeStyle=ink(.22);c.lineWidth=.6;c.beginPath();c.moveTo(side>0?rx+tw:rx,by-3);c.lineTo(ax,ay);c.stroke();c.fillStyle=ink(.85);c.fillRect(ax-1,ay-1,2,2);
-    c.fillStyle=paper(.86);c.fillRect(rx,ry,tw,14);c.strokeStyle=k===Math.min(n-1,Math.floor(p*n))?rgba(C.am,.85):ink(.5);c.strokeRect(rx+.5,ry+.5,tw-1,13);
-    c.fillStyle=ink(.95);c.fillText(tx,rx+5,ry+10.5)});
-  c.globalAlpha=1;
-}
-function scanTarget(){return SP.tgt>=0?K.lobes[SP.tgt]:null}
 function drawLobeLabels(c,t,scanning){
   c.textBaseline='alphabetic';
   if(K.reuse){const L=K.lobes.find(l=>l.id==='newspapers_com');if(L&&L.depth>-.5){c.save();c.globalAlpha=dimOfG(L)*.75;c.strokeStyle=rgba(C.re,.7);c.lineWidth=1;c.setLineDash([4,6]);c.lineDashOffset=-t*.03;c.beginPath();c.ellipse(L.sx,L.sy,L.sr*.62,L.sr*.46,0,0,6.283);c.stroke();c.setLineDash([]);c.restore()}}
@@ -1165,7 +1100,7 @@ function constFrame(t,dt){
   if(!K.c||K.w!==r.width||K.h!==r.height){const f=fit(cv);K.c=f.c;K.w=f.w;K.h=f.h}
   const c=K.c,w=K.w,h=K.h;c.clearRect(0,0,w,h);if(w<40||h<40)return;
   spUpdate(t);
-  const scanning=SP.scanLeft>0,reading=SP.mode==='read';K.scanGaze=Math.max(0,SP.tgt);
+  const scanning=SP.scanLeft>0,reading=SP.mode==='read';
   // camera follows the crawler, unless you've just dragged to look around
   const fl=SP.tgt>=0?K.lobes[SP.tgt]:null;
   if(fl&&!K.drag&&t-SP.userT>6000){const W=SP.mode==='travel'?spPos(Math.min(1,SP.e+.15)):SP.pos;K.rt.yaw=-Math.atan2(W[0],W[2]);K.rt.pitch=Math.max(-1.2,Math.min(1.2,Math.atan2(W[1],Math.hypot(W[0],W[2]))))}
@@ -1289,7 +1224,7 @@ function torusFrame(t,dt){
   const ds=Math.min(1.25,window.devicePixelRatio||1),OW=Math.max(1,Math.round(w*ds)),OH=Math.max(1,Math.round(h*ds));
   if(!T.off)T.off=document.createElement('canvas');if(T.off.width!==OW||T.off.height!==OH){T.off.width=OW;T.off.height=OH}
   const o=T.off.getContext('2d');o.setTransform(1,0,0,1,0,0);o.clearRect(0,0,OW,OH);o.setTransform(ds,0,0,ds,0,0);
-  o.globalCompositeOperation=THM.blend;o.lineWidth=.7;
+  o.globalCompositeOperation='source-over';o.lineWidth=.7;
   const strandPath=(j)=>{for(let k=0;k<NP;k++){const q=(j*NP+k)*3,x=P[q],y=P[q+1],z=P[q+2],X=M[0]*x+M[1]*y+M[2]*z,Y=M[3]*x+M[4]*y+M[5]*z,Z=M[6]*x+M[7]*y+M[8]*z,f=SC*TD/(TD-Z);k?o.lineTo(cx+X*f,cy-Y*f):o.moveTo(cx+X*f,cy-Y*f)}};
   for(const G of T.groups){const col=G.g?LCOL[LEADS[G.g-1]]:'#6d9be0',ba=G.g?.34:.17;
     for(let layer=0;layer<2;layer++){o.beginPath();
@@ -1298,7 +1233,7 @@ function torusFrame(t,dt){
   if(hl>=0){o.lineWidth=.9;for(const G of T.groups){o.beginPath();for(let j=G.a;j<G.b;j++)if(T.list[j].run===hl)strandPath(j);o.strokeStyle=rgba(G.g?LCOL[LEADS[G.g-1]]:'#8fb6f0',G.g?.75:.45);o.stroke()}}
   // fur = report links
   o.lineWidth=.8;o.beginPath();for(const s of T.sp){const a=pr(s[0],s[1],s[2]),b=pr(s[3],s[4],s[5]);o.moveTo(a[0],a[1]);o.lineTo(b[0],b[1])}o.strokeStyle=ink(.5);o.stroke();
-  c.drawImage(T.off,0,0,w,h);
+  c.globalCompositeOperation=THM.blend;c.drawImage(T.off,0,0,w,h);   // blend the strand layer once, not per strand
   c.globalCompositeOperation='source-over';
   // nodes
   const nodeScr=[];
@@ -1590,7 +1525,7 @@ $('#thFilters').addEventListener('click',e=>{const b=e.target.closest('button');
 let VECTORS=VECTORS_DEFAULT,VECTORS_TXT=null,VX_FAM=null,WATCHLIST=null,WATCHLIST_TXT=null;
 async function loadWatchlist(){try{const r=await fetch('../leads/watchlist.json',{cache:'no-store'});if(!r.ok)throw 0;const txt=await r.text();if(txt===WATCHLIST_TXT)return false;const j=JSON.parse(txt);if(!Array.isArray(j.rotation))throw 0;WATCHLIST=j;WATCHLIST_TXT=txt;return true}catch{if(WATCHLIST){WATCHLIST=null;WATCHLIST_TXT=null;return true}return false}}
 async function loadVectors(){try{const r=await fetch('../reference/detection_vectors.json',{cache:'no-store'});if(!r.ok)throw 0;const txt=await r.text();if(txt===VECTORS_TXT)return false;VECTORS=JSON.parse(txt);VECTORS_TXT=txt;return true}catch{return false}}
-const VSTAT={watching:[C.te,'watching'],ready:[C.am,'ready'],idea:[C.cy,'idea'],'off-limits':[C.re,'off-limits']};
+const VSTAT={watching:[C.te,'watching'],ready:[C.am,'ready'],idea:[C.cy,'idea']};
 // core terms the scheduled watch queries every run (its SKILL.md), plus the rotation from detection_vectors.json
 const CORE_TERMS=['newspapers.com','cors.lol','pastehtml.dev','r.jina.ai','amap','gaode','uqscan','uqchain','httpbin.org/base64','httpbun.com','webhook.site','livecodes.io','allorigins'];
 const wlTerms=a=>(a||[]).map(x=>typeof x==='string'?x:x.term);
@@ -1808,7 +1743,7 @@ async function loadTranscript(k){
     const ol=heads.filter(h=>h.lv<=3);$('#olCount').textContent=ol.length+' heads';
     $('#outline').innerHTML=ol.map(h=>`<a href="#" class="l${h.lv}" data-h="${h.id}">${esc(h.t)}</a>`).join('')||'<div class="empty">no headings</div>';
   }catch{$('#trMeta').textContent='unavailable';$('#outline').innerHTML='';$('#olCount').textContent='—';
-    $('#trBody').innerHTML=`<p>Source files can't be read in this mode. Open the <strong>SwarmChaser</strong> app, or serve the project folder locally:</p><pre><code>python3 -m http.server 8080 --bind 127.0.0.1</code></pre><p>then open <code>http://localhost:8080/dashboard/</code></p>`}
+    $('#trBody').innerHTML=`<p>Source files can't be read in this mode. Open the <strong>SwarmChaser</strong> app, or run the bundled local server from the project folder:</p><pre><code>python3 scripts/serve.py</code></pre><p>then open <code>http://127.0.0.1:8080/dashboard/</code></p>`}
 }
 
 /* ═══════════════ 08 intel ═══════════════ */
@@ -1875,13 +1810,13 @@ function renderAll(anim){
 }
 // re-render everything that prints a time, without rebuilding the animations
 function retime(){document.documentElement.classList.toggle('h12',TF.h12);$('#hBtn').textContent=TF.h12?'am/pm':'24h';$('#zBtn').textContent=tzName().toLowerCase();
-  if(!S)return;renderChrome();renderOverview(false);renderTimeline();renderSelRun();renderRunLog();renderInterp();renderThreads();renderVectors();renderIntel();K.lkey=null;redrawStatic(curTab);briefs();checkSince()}
+  if(!S)return;renderChrome();renderOverview(false);renderTimeline();renderSelRun();renderRunLog();renderInterp();renderThreads();renderVectors();renderIntel();redrawStatic(curTab);briefs();checkSince()}
 let busy=false;
 async function refresh(manual){
   if(busy)return;busy=true;const b=$('#refreshBtn');if(manual){b.classList.remove('busy');void b.offsetWidth;b.classList.add('busy')}
   try{const prev=S&&S.R[0]?S.R[0].run_utc:null;const [a,i,th,vx,wl]=await Promise.all([loadData(),loadInterp(),loadThreads(),loadVectors(),loadWatchlist()]);
     if(a||i||th||vx||wl||!S)renderAll(true);else{renderChrome();renderInterp()}
-    if(a&&prev)announceNewRuns(prev);if(SCAN.pending)scanTick()
+    if(a&&prev)announceNewRuns(prev);
     if(curTab==='transcripts'&&manual)loadTranscript(TR_CUR)}finally{busy=false}
 }
 
@@ -1981,22 +1916,14 @@ function announceNewRuns(prevUtc){
   const kind=fl.length?'flag':mv.length?'activity':'quiet';
   const msg=`${stamp(fresh[0].run_utc)}${zs()} · `+(mv.length?mv.map(l=>`${LNAME[l.id]} +${l.new_rows}`).join(', '):'all leads quiet')+(fl.length?` · ${[...new Set(fl)].map(k=>FLAB[k]).join(', ')}`:'');
   triggerFlash(kind,ids,msg);
-  if(SCAN.pending)scanDone();
 }
 
 /* ── RELOAD: re-read the data files produced by your own watch process ── */
-const SCAN={pending:0,base:null,timer:null};
 function runScan(){
-  K.scanT0=performance.now();K.scanN=K.lobes.length;K.scanGaze=0;if(K.focus)unfocus();if(curTab!=='overview')setTab('overview');
+  K.scanT0=performance.now();if(K.focus)unfocus();if(curTab!=='overview')setTab('overview');
   refresh(true);
   toast('scanning','The watch is looking over each cloud, then re-reading the data files.');
 }
-function scanTick(){const b=$('#scanBtn'),el=Date.now()-SCAN.pending;
-  if(el>30*6e4){scanDone(true);return}
-  b.classList.add('scanning');b.firstChild.textContent=`scanning ${Math.floor(el/6e4)}:${pad(Math.floor(el/1000)%60)} `}
-function scanDone(timedOut){clearInterval(SCAN.timer);SCAN.pending=0;const b=$('#scanBtn');b.classList.remove('scanning');b.firstChild.textContent='reload ';
-  if(timedOut)toast('no new data','Nothing new landed in watch_log.jsonl.')}
-setInterval(()=>{if(SCAN.pending)scanTick()},1000);
 let autoT=null;
 function setAuto(on){clearInterval(autoT);autoT=on?setInterval(()=>refresh(false),30000):null;$('#autoBtn').classList.toggle('live',on);store.set('sc.auto',on?'1':'0')}
 
@@ -2013,9 +1940,9 @@ function syncView(){const p=themePref();
 function applyTheme(){const t=themeOf(themePref()),nt=THEMES[t];syncView();if(nt===THM)return;const old=THM;THM=nt;document.documentElement.dataset.theme=t;
   Object.assign(C,nt.C);Object.assign(LCOL,nt.L);RUNG_COL.splice(0,RUNG_COL.length,...nt.rung);for(const k in nt.fl)FL_KIND[k]=nt.fl[k].slice();
   [KIND,TSTAT,TKIND,AR_COL,AR_SER_COL].forEach(o=>retint(o,old,nt));
-  if(S){K.lkey=null;renderAll(false);if(AR.index)renderArchives()}}
+  if(S){renderAll(false);if(AR.index)renderArchives()}}
 const readLevel=()=>document.documentElement.classList.contains('dense')?'complex':document.documentElement.classList.contains('no-eli')?'normal':'eli5';
-function setRead(v){const d=document.documentElement;d.classList.toggle('dense',v==='complex');d.classList.toggle('no-eli',v!=='eli5');store.set('sc.read',v);syncView();K.lkey=null;
+function setRead(v){const d=document.documentElement;d.classList.toggle('dense',v==='complex');d.classList.toggle('no-eli',v!=='eli5');store.set('sc.read',v);syncView();
   requestAnimationFrame(()=>{redrawStatic(curTab);if($('#help').classList.contains('on'))layoutHelp()})}
 function clearNotifications(){try{store.set('sc.seen',S&&S.R[0]?S.R[0].run_utc:'')}catch(e){}$('#since').classList.remove('on');const ov=$('.tab[data-tab=overview]');if(ov)ov.classList.remove('ping');$('#toast').classList.remove('on');native({cmd:'clearBadge'});$('.vwrap').classList.remove('on')}
 $('#viewBtn').addEventListener('click',e=>{e.stopPropagation();$('.vwrap').classList.toggle('on');syncView()});

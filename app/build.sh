@@ -24,7 +24,7 @@ if [ ! -f "$BUILD/AppIcon.icns" ] || [ "$HERE/make_icon.m" -nt "$BUILD/AppIcon.i
 fi
 
 echo "→ compile"
-clang -O2 -fobjc-arc -mmacosx-version-min=13.0 -framework Cocoa -framework WebKit \
+clang -O2 -fobjc-arc -mmacosx-version-min=13.3 -framework Cocoa -framework WebKit \
   "$HERE/main.m" -o "$BUILD/SwarmChaser"
 
 echo "→ snapshot"
