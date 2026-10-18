@@ -1,7 +1,7 @@
 #!/bin/bash
 # Builds SwarmChaser.app (a native window around dashboard/index.html) into the project folder.
-# Usage: app/build.sh            — rebuild after changing main.m, make_icon.m or Info.plist.
-# Dashboard edits (dashboard/index.html) show up on the next launch or ⇧⌘R without rebuilding.
+# Usage: app/build.sh            — rebuild after changing anything: the app carries its own copy of
+# dashboard/index.html and the sample data, so edits show up only after a rebuild.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"

@@ -921,7 +921,7 @@ function renderChrome(){
   const p=$('#posture');p.textContent=`● THREAT ${bn.toUpperCase()} · ${S.posture}`;p.className='posture b'+bi;
   const sf=[...SAMPLE_FILES],st=$('#sampleTag');st.hidden=!sf.length;
   if(sf.length){st.textContent=isSample()?'SAMPLE DATA':'PARTLY SAMPLE';st.title=(isSample()?`Bundled example data, frozen at ${L?stamp(L.run_utc)+zs():'—'}. `:'')+`From the sample: ${sf.join(', ')}. Point SWARMCHASER_ROOT at your own data folder to replace it.`}
-  $('#fSrc').textContent=(SRC==='jsonl'?'leads/watch_log.jsonl':'embedded snapshot (start the app or server to read live files)')+(isSample()?' · sample data':'');
+  $('#fSrc').textContent=(SRC==='jsonl'?'leads/watch_log.jsonl':'embedded snapshot (start the app or server to read live files)')+(SAMPLE_FILES.size?` · from the sample: ${[...SAMPLE_FILES].map(x=>x.split('/').pop()).join(', ')}`:'');
   $('#fShell').textContent=IS_APP?'mac app':'browser';
 }
 
