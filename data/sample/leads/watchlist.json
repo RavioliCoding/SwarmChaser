@@ -1,0 +1,363 @@
+{
+  "schema_version": 1,
+  "updated_utc": "2026-10-16T14:10:00Z",
+  "budget": 15,
+  "note": "What the swarmchaser watch searches on urlquery. hot = every run; warm = half per run (even/odd positions alternate); promoted = temporary hot after an agent-like hit; rotation = one group of 3 per run. Maintained by the watch; the dashboard reads it.",
+  "hot": [
+    {
+      "term": "newspapers.com",
+      "last_hit": "2026-10-16T10:44:00Z",
+      "why": "active campaign"
+    },
+    {
+      "term": "cors.lol",
+      "last_hit": "2026-10-15T12:04:00Z",
+      "why": "newest relay"
+    },
+    {
+      "term": "pastehtml.dev",
+      "last_hit": "2026-10-13T01:03:00Z",
+      "why": "carrier"
+    },
+    {
+      "term": "r.jina.ai",
+      "last_hit": "2026-10-12T17:50:00Z",
+      "why": "relay"
+    },
+    {
+      "term": "amap",
+      "last_hit": "2026-10-15T00:25:00Z",
+      "why": "fleet target"
+    },
+    {
+      "term": "httpbin.org/base64",
+      "last_hit": "2026-10-15T22:23:00Z",
+      "why": "payload host; probe on 10-15"
+    }
+  ],
+  "warm": [
+    {
+      "term": "uqscan",
+      "last_hit": "2026-10-04T12:19:00Z"
+    },
+    {
+      "term": "151032709",
+      "last_hit": "2026-10-14T23:46:00Z",
+      "why": "reuse tripwire: page ID"
+    },
+    {
+      "term": "gaode",
+      "last_hit": null
+    },
+    {
+      "term": "648915976",
+      "last_hit": "2026-10-15T12:19:00Z",
+      "why": "reuse tripwire: page ID"
+    },
+    {
+      "term": "httpbun.com",
+      "last_hit": "2026-10-08T06:09:00Z"
+    },
+    {
+      "term": "webhook.site",
+      "last_hit": "2026-10-08T13:00:36Z"
+    },
+    {
+      "term": "livecodes.io",
+      "last_hit": "2026-10-08T06:09:00Z"
+    },
+    {
+      "term": "allorigins",
+      "last_hit": "2026-10-07T22:54:00Z"
+    },
+    {
+      "term": "uqchain",
+      "last_hit": "2026-10-08T06:09:00Z",
+      "why": "fleet tag family"
+    }
+  ],
+  "promoted": [],
+  "rotation": [
+    [
+      "corsproxy.io",
+      "workers.dev",
+      "rentry.co"
+    ],
+    [
+      "ntfy.sh",
+      "cdn.jsdelivr.net/gh",
+      "countapi"
+    ],
+    [
+      "hc-ping.com",
+      "image.thum.io",
+      "kaggle.com/code"
+    ],
+    [
+      "httpbin.org/ip",
+      "dontpad.com",
+      ".well-known/agent"
+    ],
+    [
+      "/.env",
+      "translate.goog",
+      "deno.dev"
+    ],
+    [
+      "telegra.ph",
+      "smee.io",
+      "xss-game.appspot.com"
+    ],
+    [
+      "trycloudflare.com",
+      "cron-job.org",
+      "s.wordpress.com/mshots"
+    ],
+    [
+      "colab.research.google.com",
+      "httpbin.org/headers",
+      "notepad.pw"
+    ],
+    [
+      "/mcp",
+      "validator.w3.org",
+      "val.run"
+    ],
+    [
+      "huggingface.co/datasets",
+      "pipedream.net",
+      "localhost.run"
+    ],
+    [
+      "uptimerobot",
+      "microlink.io",
+      "huggingface.co/spaces"
+    ],
+    [
+      "ipinfo.io",
+      "hackmd.io",
+      "web.archive.org/save"
+    ],
+    [
+      "newspapers%2Ecom",
+      "raw.githubusercontent.com",
+      "requestbin"
+    ],
+    [
+      "zzASK",
+      "ifconfig.me",
+      "etherpad"
+    ],
+    [
+      "archive.ph",
+      "markdown.new",
+      "mailinator"
+    ],
+    [
+      "handoff",
+      "api.ipify.org",
+      "yopmail"
+    ],
+    [
+      "own_fragment",
+      "OAI_META",
+      "claude2026"
+    ],
+    [
+      "chroniclingamerica.loc.gov",
+      "map.baidu.com",
+      "ipfs.io/ipfs"
+    ],
+    [
+      "news.google.com/newspapers",
+      "map.qq.com",
+      "njump.me"
+    ],
+    [
+      "fultonhistory.com",
+      "dianping.com",
+      "mybinder.org"
+    ],
+    [
+      "nyshistoricnewspapers.org",
+      "nominatim.openstreetmap.org",
+      "dweb.link"
+    ],
+    [
+      "trove.nla.gov.au",
+      "newspaperarchive.com",
+      "api.rss2json.com"
+    ],
+    [
+      "md.succ.ai",
+      "jqp.vercel.app",
+      "allorigins.hexlet.app"
+    ],
+    [
+      "datausa.io",
+      "uk.interparcel.com",
+      "proxymule.com"
+    ]
+  ],
+  "identifiers": [
+    {
+      "token": "151032709",
+      "kind": "page id",
+      "first_seen": "2026-10-12T22:48:00Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T01"
+    },
+    {
+      "token": "648915976",
+      "kind": "page id",
+      "first_seen": "2026-10-10T17:00:00Z",
+      "surfaces": [
+        "urlquery",
+        "r.jina.ai",
+        "api.cors.lol"
+      ],
+      "thread": "T01"
+    },
+    {
+      "token": "654288430",
+      "kind": "page id",
+      "first_seen": "2026-10-13T07:05:00Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T01"
+    },
+    {
+      "token": "callback=alert",
+      "kind": "probe",
+      "first_seen": "2026-10-12T23:39:00Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T01"
+    },
+    {
+      "token": "_cb=",
+      "kind": "counter",
+      "first_seen": "2026-10-15T11:45:00Z",
+      "surfaces": [
+        "urlquery",
+        "api.cors.lol"
+      ],
+      "thread": "T01"
+    },
+    {
+      "token": "x=2000",
+      "kind": "counter",
+      "first_seen": "2026-10-12T17:38:00Z",
+      "surfaces": [
+        "urlquery",
+        "r.jina.ai"
+      ],
+      "thread": "T01"
+    },
+    {
+      "token": "claude20261004",
+      "kind": "self-chosen tag",
+      "first_seen": "2026-10-04T03:37:00Z",
+      "surfaces": [
+        "urlquery",
+        "web.archive.org"
+      ],
+      "thread": "T02"
+    },
+    {
+      "token": "research20261004",
+      "kind": "self-chosen tag",
+      "first_seen": "2026-10-04T03:37:00Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T02"
+    },
+    {
+      "token": "gc4v4",
+      "kind": "program name",
+      "first_seen": "2026-10-07T22:45:00Z",
+      "surfaces": [
+        "urlquery",
+        "httpbin.org"
+      ],
+      "thread": "T02"
+    },
+    {
+      "token": "CHATGPTTEST1",
+      "kind": "self-chosen label",
+      "first_seen": "2026-04-13T00:00:00Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T06"
+    },
+    {
+      "token": "OAI_META_1312",
+      "kind": "self-chosen label",
+      "first_seen": "2026-04-13T00:00:00Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T06"
+    },
+    {
+      "token": "own_fragment",
+      "kind": "envelope field",
+      "first_seen": "2026-08-30T00:00:00Z",
+      "surfaces": [
+        "UseModWiki-like wiki"
+      ],
+      "thread": "T07"
+    },
+    {
+      "token": "XyzzyImpossible",
+      "kind": "control term",
+      "first_seen": "2026-10-16T10:42:00Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T01"
+    },
+    {
+      "token": "XF90249",
+      "kind": "read-back marker",
+      "first_seen": "2026-06-20T05:58:40Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T01"
+    },
+    {
+      "token": "uq=cookietest",
+      "kind": "self-chosen tag",
+      "first_seen": "2026-10-08T02:38:00Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T11"
+    },
+    {
+      "token": "uq=target3",
+      "kind": "self-chosen tag",
+      "first_seen": "2026-10-08T02:33:00Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T11"
+    },
+    {
+      "token": "YHY V7",
+      "kind": "program title",
+      "first_seen": "2026-10-06T05:34:00Z",
+      "surfaces": [
+        "urlquery"
+      ],
+      "thread": "T02"
+    }
+  ]
+}

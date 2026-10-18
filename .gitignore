@@ -1,0 +1,13 @@
+# build artifacts
+app/build/
+*.app/
+
+# macOS
+.DS_Store
+
+# third-party datasets (download locally with scripts/fetch_datasets.py; not redistributed here)
+data/sample/archives/
+
+# python
+__pycache__/
+*.pyc
