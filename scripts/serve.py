@@ -19,6 +19,7 @@ import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 DATA = pathlib.Path(os.environ.get("SWARMCHASER_ROOT") or ROOT / "data" / "sample").resolve()
+SAMPLE = not os.environ.get("SWARMCHASER_ROOT")  # data files get X-SwarmChaser-Data: sample, so the page can label them
 PORT = int(os.environ.get("PORT", "8080"))
 HOSTS = {f"127.0.0.1:{PORT}", f"localhost:{PORT}", f"[::1]:{PORT}"}
 
@@ -30,6 +31,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             rel = "dashboard/index.html"
         first, _, rest = rel.partition("/")
         base, rel = (ROOT / "dashboard", rest) if first == "dashboard" else (DATA, rel)
+        self.sample = SAMPLE and base == DATA
         target = (base / rel).resolve()
         return str(target) if target.is_relative_to(base) and target.is_file() else ""  # "" → 404
 
@@ -45,6 +47,8 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
+        if getattr(self, "sample", False):
+            self.send_header("X-SwarmChaser-Data", "sample")
         super().end_headers()
 
 

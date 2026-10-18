@@ -15,6 +15,7 @@ static NSString *const kScheme = @"swarm";
 
 @interface LocalScheme : NSObject <WKURLSchemeHandler>
 @property (nonatomic, copy) NSArray<NSURL *> *roots;
+@property (nonatomic, copy) NSString *samplePath;  // the bundled sample data; files served from it are marked so the page can say so
 @end
 
 @implementation LocalScheme
@@ -49,14 +50,16 @@ static NSString *const kScheme = @"swarm";
         if (![[NSFileManager defaultManager] fileExistsAtPath:file.path isDirectory:&dir] || dir) continue;
         NSData *data = [NSData dataWithContentsOfURL:file];
         if (!data) continue;
-        [self respond:task url:url status:200 type:[LocalScheme typeFor:file.pathExtension] data:data];
+        BOOL sample = [root.path isEqualToString:self.samplePath] && ![rel hasPrefix:@"dashboard/"];
+        [self respond:task url:url status:200 type:[LocalScheme typeFor:file.pathExtension] data:data sample:sample];
         return;
     }
-    [self respond:task url:url status:404 type:@"text/plain" data:[@"not found" dataUsingEncoding:NSUTF8StringEncoding]];
+    [self respond:task url:url status:404 type:@"text/plain" data:[@"not found" dataUsingEncoding:NSUTF8StringEncoding] sample:NO];
 }
 - (void)webView:(WKWebView *)webView stopURLSchemeTask:(id<WKURLSchemeTask>)task {}
-- (void)respond:(id<WKURLSchemeTask>)task url:(NSURL *)url status:(NSInteger)status type:(NSString *)type data:(NSData *)data {
-    NSDictionary *h = @{@"Content-Type": type, @"Content-Length": [@(data.length) stringValue], @"Cache-Control": @"no-store"};
+- (void)respond:(id<WKURLSchemeTask>)task url:(NSURL *)url status:(NSInteger)status type:(NSString *)type data:(NSData *)data sample:(BOOL)sample {
+    NSMutableDictionary *h = [@{@"Content-Type": type, @"Content-Length": [@(data.length) stringValue], @"Cache-Control": @"no-store"} mutableCopy];
+    if (sample) h[@"X-SwarmChaser-Data"] = @"sample";
     NSHTTPURLResponse *resp = [[NSHTTPURLResponse alloc] initWithURL:url statusCode:status HTTPVersion:@"HTTP/1.1" headerFields:h];
     [task didReceiveResponse:resp];
     [task didReceiveData:data];
@@ -123,6 +126,7 @@ static NSString *const kScheme = @"swarm";
     NSURL *bundled = [NSBundle.mainBundle.resourceURL URLByAppendingPathComponent:@"web" isDirectory:YES];
     if (bundled) [roots addObject:bundled];  // fallback copy of the UI if the project folder moves
     self.scheme = [[LocalScheme alloc] initWithRoots:roots];
+    self.scheme.samplePath = bundled.URLByStandardizingPath.URLByResolvingSymlinksInPath.path;
     [cfg setURLSchemeHandler:self.scheme forURLScheme:kScheme];
     WKUserContentController *ucc = cfg.userContentController;
     [ucc addScriptMessageHandler:self name:@"swarm"];
